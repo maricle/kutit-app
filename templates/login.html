@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingresar — Kutit</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <h1>Kutit</h1>
+    <p>Panel interno — Clever CNC</p>
+    {% if error %}<div class="msg err" style="display:block;">{{ error }}</div>{% endif %}
+    <form method="post" action="/dashboard/login">
+      <label for="api_key">API key</label>
+      <input type="password" id="api_key" name="api_key" required autofocus>
+      <button type="submit">Ingresar</button>
+    </form>
+  </div>
+</body>
+</html>

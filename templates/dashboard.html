@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel — Kutit</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Kutit — Panel de producción</h1>
+  <form method="post" action="/dashboard/logout" style="margin:0;">
+    <a href="#" onclick="this.closest('form').submit(); return false;">Cerrar sesión</a>
+  </form>
+</div>
+
+<div class="kanban">
+
+  <div class="columna">
+    <h2>Esperando WhatsApp <span class="cant">({{ grupos.esperando|length }})</span></h2>
+    {% for s in grupos.esperando %}
+    <div class="tarjeta">
+      <div class="nombre">{{ s.contacto }}</div>
+      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
+      <div class="acciones">
+        <button class="primario" onclick="confirmarSolicitud({{ s.id }})">Confirmar</button>
+        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
+        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="vacio">Nada pendiente de confirmación.</div>
+    {% endfor %}
+  </div>
+
+  <div class="columna">
+    <h2>Por hacer <span class="cant">({{ grupos.por_hacer|length }})</span></h2>
+    {% for s in grupos.por_hacer %}
+    <div class="tarjeta">
+      <div class="nombre">{{ s.contacto }}</div>
+      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
+      <div class="acciones">
+        <button onclick="moverEtapa({{ s.id }}, 'en_proceso')">→ En proceso</button>
+        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
+        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="vacio">Sin solicitudes.</div>
+    {% endfor %}
+  </div>
+
+  <div class="columna">
+    <h2>En proceso <span class="cant">({{ grupos.en_proceso|length }})</span></h2>
+    {% for s in grupos.en_proceso %}
+    <div class="tarjeta">
+      <div class="nombre">{{ s.contacto }}</div>
+      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
+      <div class="acciones">
+        <button onclick="moverEtapa({{ s.id }}, 'terminado')">→ Terminado</button>
+        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
+        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="vacio">Sin solicitudes.</div>
+    {% endfor %}
+  </div>
+
+  <div class="columna">
+    <h2>Terminado <span class="cant">({{ grupos.terminado|length }})</span></h2>
+    {% for s in grupos.terminado %}
+    <div class="tarjeta">
+      <div class="nombre">{{ s.contacto }}</div>
+      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
+      <div class="acciones">
+        <a href="/dashboard/solicitudes/{{ s.id }}">Ver</a>
+        <a href="/solicitudes/{{ s.id }}/csv">CSV</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="vacio">Sin solicitudes.</div>
+    {% endfor %}
+  </div>
+
+  <div class="columna">
+    <h2>Canceladas <span class="cant">({{ grupos.canceladas|length }})</span></h2>
+    {% for s in grupos.canceladas %}
+    <div class="tarjeta">
+      <div class="nombre">{{ s.contacto }}</div>
+      <div class="meta">{{ s.telefono }} · {{ s.motivo_cancelacion or 'sin motivo' }}</div>
+      <div class="acciones">
+        <a href="/dashboard/solicitudes/{{ s.id }}">Ver</a>
+        <button class="peligro" onclick="eliminarSolicitud({{ s.id }})">Eliminar</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="vacio">Sin canceladas.</div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<script>
+async function accion(url, method, body){
+  const res = await fetch(url, {
+    method,
+    headers: body !== undefined ? {'Content-Type': 'application/json'} : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    alert(err.detail || 'Ocurrió un error');
+    return false;
+  }
+  return true;
+}
+async function confirmarSolicitud(id){
+  if (await accion(`/solicitudes/${id}/confirmar`, 'POST')) location.reload();
+}
+async function moverEtapa(id, etapa){
+  if (await accion(`/solicitudes/${id}/etapa`, 'POST', {etapa})) location.reload();
+}
+async function cancelarSolicitud(id){
+  const motivo = prompt('Motivo de cancelación (opcional):') || null;
+  if (await accion(`/solicitudes/${id}/cancelar`, 'POST', {motivo})) location.reload();
+}
+async function eliminarSolicitud(id){
+  if (!confirm('¿Eliminar esta solicitud de forma permanente?')) return;
+  if (await accion(`/solicitudes/${id}`, 'DELETE')) location.reload();
+}
+</script>
+
+</body>
+</html>

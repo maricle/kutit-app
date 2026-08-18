@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitud #{{ solicitud.id }} — Kutit</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Kutit</h1>
+  <a href="/dashboard">← Volver al panel</a>
+</div>
+
+<div class="detalle-wrap">
+
+  {% set bloqueada = solicitud.etapa_produccion == 'terminado' %}
+  {% if bloqueada %}
+  <div class="aviso-bloqueado">Esta solicitud está <strong>terminada</strong> y ya no se puede editar.</div>
+  {% endif %}
+
+  <form id="formSolicitud" class="card">
+    <h2>Solicitud #{{ solicitud.id }} — {{ solicitud.estado }}</h2>
+    <div class="grid2">
+      <div>
+        <label for="contacto">Nombre y apellido</label>
+        <input type="text" id="contacto" name="contacto" value="{{ solicitud.contacto }}" {{ 'disabled' if bloqueada }}>
+      </div>
+      <div>
+        <label for="telefono">Teléfono / WhatsApp</label>
+        <input type="text" id="telefono" name="telefono" value="{{ solicitud.telefono }}" {{ 'disabled' if bloqueada }}>
+      </div>
+      <div>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ solicitud.email or '' }}" {{ 'disabled' if bloqueada }}>
+      </div>
+      <div>
+        <label for="fecha">Fecha</label>
+        <input type="date" id="fecha" name="fecha" value="{{ solicitud.fecha or '' }}" {{ 'disabled' if bloqueada }}>
+      </div>
+      <div>
+        <label for="material">Placa</label>
+        <select id="material" name="material" {{ 'disabled' if bloqueada }}>
+          <option value="MDF" {{ 'selected' if solicitud.material == 'MDF' }}>MDF</option>
+          <option value="Acrilico" {{ 'selected' if solicitud.material == 'Acrilico' }}>Acrílico</option>
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <div class="card">
+    <h2>Piezas</h2>
+    <table class="lineas" id="tablaLineas">
+      <thead>
+        <tr>
+          <th>Descripción</th><th>Cant.</th><th>Largo</th><th>Ancho</th>
+          <th>L1</th><th>L2</th><th>A1</th><th>A2</th><th>Rotar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in solicitud.cortes %}
+        <tr data-linea>
+          <td><input type="text" class="l-descripcion" value="{{ c.descripcion or '' }}" {{ 'disabled' if bloqueada }}></td>
+          <td><input type="number" class="l-cantidad" value="{{ c.cantidad }}" style="width:60px" {{ 'disabled' if bloqueada }}></td>
+          <td><input type="number" class="l-alto" value="{{ c.alto }}" style="width:70px" {{ 'disabled' if bloqueada }}></td>
+          <td><input type="number" class="l-ancho" value="{{ c.ancho }}" style="width:70px" {{ 'disabled' if bloqueada }}></td>
+          <td><input type="checkbox" class="l-canto1" {{ 'checked' if c.canto_1 }} {{ 'disabled' if bloqueada }}></td>
+          <td><input type="checkbox" class="l-canto2" {{ 'checked' if c.canto_2 }} {{ 'disabled' if bloqueada }}></td>
+          <td><input type="checkbox" class="l-canto3" {{ 'checked' if c.canto_3 }} {{ 'disabled' if bloqueada }}></td>
+          <td><input type="checkbox" class="l-canto4" {{ 'checked' if c.canto_4 }} {{ 'disabled' if bloqueada }}></td>
+          <td><input type="checkbox" class="l-rotar" {{ 'checked' if c.rotar }} {{ 'disabled' if bloqueada }}></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="barra-acciones">
+      {% if not bloqueada %}
+      <button type="button" class="primario" onclick="guardarCambios({{ solicitud.id }})">Guardar cambios</button>
+      {% endif %}
+      {% if solicitud.estado == 'esperando_confirmacion_whatsapp' %}
+      <button type="button" onclick="confirmarSolicitud({{ solicitud.id }})">Confirmar (llegó el WhatsApp)</button>
+      {% endif %}
+      {% if solicitud.estado == 'confirmada' and not bloqueada %}
+      <button type="button" onclick="cancelarSolicitud({{ solicitud.id }})" class="peligro">Cancelar solicitud</button>
+      {% endif %}
+      <a href="/solicitudes/{{ solicitud.id }}/csv">Descargar CSV</a>
+      <button type="button" class="peligro" onclick="eliminarSolicitud({{ solicitud.id }})">Eliminar definitivamente</button>
+    </div>
+
+    <div class="msg" id="msgBox"></div>
+  </div>
+
+</div>
+
+<script>
+function mostrarMensaje(tipo, texto){
+  const box = document.getElementById('msgBox');
+  box.className = 'msg ' + tipo;
+  box.textContent = texto;
+}
+
+async function accion(url, method, body){
+  const res = await fetch(url, {
+    method,
+    headers: body !== undefined ? {'Content-Type': 'application/json'} : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    mostrarMensaje('err', err.detail ? JSON.stringify(err.detail) : 'Ocurrió un error');
+    return false;
+  }
+  return true;
+}
+
+function recolectarLineas(){
+  return Array.from(document.querySelectorAll('#tablaLineas tbody tr[data-linea]')).map(fila => ({
+    descripcion: fila.querySelector('.l-descripcion').value,
+    cantidad: parseInt(fila.querySelector('.l-cantidad').value || '1', 10),
+    alto: parseInt(fila.querySelector('.l-alto').value || '0', 10),
+    ancho: parseInt(fila.querySelector('.l-ancho').value || '0', 10),
+    canto_1: fila.querySelector('.l-canto1').checked,
+    canto_2: fila.querySelector('.l-canto2').checked,
+    canto_3: fila.querySelector('.l-canto3').checked,
+    canto_4: fila.querySelector('.l-canto4').checked,
+    rotar: fila.querySelector('.l-rotar').checked,
+  }));
+}
+
+async function guardarCambios(id){
+  const datos = {
+    contacto: document.getElementById('contacto').value,
+    telefono: document.getElementById('telefono').value,
+    email: document.getElementById('email').value,
+    fecha: document.getElementById('fecha').value,
+    material: document.getElementById('material').value,
+    cortes: recolectarLineas(),
+  };
+  if (await accion(`/solicitudes/${id}`, 'PUT', datos)){
+    mostrarMensaje('ok', 'Cambios guardados.');
+  }
+}
+
+async function confirmarSolicitud(id){
+  if (await accion(`/solicitudes/${id}/confirmar`, 'POST')) location.href = '/dashboard';
+}
+async function cancelarSolicitud(id){
+  const motivo = prompt('Motivo de cancelación (opcional):') || null;
+  if (await accion(`/solicitudes/${id}/cancelar`, 'POST', {motivo})) location.href = '/dashboard';
+}
+async function eliminarSolicitud(id){
+  if (!confirm('¿Eliminar esta solicitud de forma permanente?')) return;
+  if (await accion(`/solicitudes/${id}`, 'DELETE')) location.href = '/dashboard';
+}
+</script>
+
+</body>
+</html>

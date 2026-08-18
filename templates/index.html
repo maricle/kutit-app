@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solicitá tu corte — Clever CNC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --amarillo:#FBCB00;
+    --negro:#111111;
+    --texto:#212529;
+    --blanco:#ffffff;
+    --gris:#f5f5f5;
+    --gris-borde:rgba(33,37,41,.15);
+    --rojo:#e0342f;
+    --radius:6.4px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Open Sans","Odoo Unicode Support Noto",sans-serif;
+    background:var(--gris);
+    color:var(--texto);
+  }
+  h1,h2,.brand,.submit-btn,.whatsapp-btn,.add-btn,label,.corte-header span{
+    font-family:Montserrat,"Odoo Unicode Support Noto",sans-serif;
+  }
+  .topbar{
+    background:var(--negro);
+    padding:20px 20px;
+    text-align:center;
+    position:relative;
+    clip-path:polygon(0 0,100% 0,100% 88%,0 100%);
+    padding-bottom:34px;
+  }
+  .topbar h1{
+    margin:0;
+    font-size:26px;
+    letter-spacing:.5px;
+    font-weight:800;
+    color:var(--amarillo);
+  }
+  .topbar p{
+    margin:6px 0 0;
+    color:var(--blanco);
+    font-size:14px;
+  }
+  .wrap{
+    max-width:820px;
+    margin:0 auto;
+    padding:14px 16px 60px;
+  }
+  .intro{
+    background:var(--blanco);
+    border:1px solid var(--gris-borde);
+    border-left:5px solid var(--amarillo);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    margin-bottom:20px;
+    font-size:14px;
+    line-height:1.5;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .card{
+    background:var(--blanco);
+    border:1px solid var(--gris-borde);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .card h2{
+    margin:0 0 16px;
+    font-size:16px;
+    font-weight:700;
+    color:var(--negro);
+    border-bottom:2px solid var(--amarillo);
+    padding-bottom:10px;
+  }
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  @media (max-width:560px){ .grid2{grid-template-columns:1fr;} }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--texto);
+    margin-bottom:6px;
+  }
+  input[type=text],input[type=tel],input[type=email],input[type=date],input[type=number],select,textarea{
+    width:100%;
+    padding:8px 12px;
+    border:1px solid var(--gris-borde);
+    border-radius:var(--radius);
+    font-size:14px;
+    background:var(--blanco);
+    font-family:inherit;
+    color:var(--texto);
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:none;
+    border-color:var(--amarillo);
+    box-shadow:0 0 0 3px rgba(251,203,0,.35);
+  }
+  textarea{resize:vertical;min-height:70px;}
+  .field{margin-bottom:12px;}
+  .hint{
+    font-size:12.5px;
+    color:#666;
+    margin:-6px 0 14px;
+  }
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--gris-borde);
+    border-radius:var(--radius);
+    margin-bottom:12px;
+  }
+  table.cortes{
+    border-collapse:collapse;
+    width:100%;
+    min-width:680px;
+    font-size:13px;
+  }
+  table.cortes thead th{
+    background:var(--negro);
+    color:var(--amarillo);
+    font-family:Montserrat,sans-serif;
+    font-weight:700;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.3px;
+    padding:9px 6px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  table.cortes thead th.col-desc{text-align:left;padding-left:10px;}
+  table.cortes tbody td{
+    border-bottom:1px solid var(--gris-borde);
+    padding:2px;
+    text-align:center;
+    background:var(--blanco);
+  }
+  table.cortes tbody tr:nth-child(even) td{background:#fbfbfb;}
+  table.cortes td.col-num{
+    color:#999;
+    font-size:12px;
+    width:26px;
+    font-family:Montserrat,sans-serif;
+  }
+  table.cortes td input[type=text],
+  table.cortes td input[type=number]{
+    width:100%;
+    min-width:56px;
+    border:1px solid transparent;
+    border-radius:4px;
+    padding:7px 6px;
+    font-size:13px;
+    background:transparent;
+    text-align:center;
+  }
+  table.cortes td.col-desc input[type=text]{
+    text-align:left;
+    min-width:150px;
+  }
+  table.cortes td input:focus{
+    outline:none;
+    border-color:var(--amarillo);
+    background:#fffbe8;
+  }
+  table.cortes td.col-canto{width:34px;}
+  table.cortes td.col-canto input{width:16px;height:16px;}
+  table.cortes td.col-del{width:30px;}
+  .btn-del-row{
+    border:none;
+    background:none;
+    cursor:pointer;
+    color:var(--rojo);
+    font-size:15px;
+    line-height:1;
+    padding:4px;
+  }
+  .btn-del-row:disabled{opacity:.25;cursor:not-allowed;}
+  .add-btn{
+    display:block;
+    width:100%;
+    padding:11px;
+    background:var(--blanco);
+    border:1.5px dashed var(--gris-borde);
+    border-radius:var(--radius);
+    color:var(--texto);
+    font-weight:600;
+    cursor:pointer;
+    font-size:13px;
+    font-family:"Open Sans",sans-serif;
+  }
+  .add-btn:hover{background:var(--gris);border-color:var(--amarillo);}
+  .submit-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    background:var(--amarillo);
+    border:1px solid var(--amarillo);
+    border-radius:var(--radius);
+    color:var(--texto);
+    font-weight:700;
+    cursor:pointer;
+    font-size:15px;
+    margin-top:6px;
+  }
+  .submit-btn:hover{background:#e6bd00;}
+  .submit-btn:disabled{opacity:.6;cursor:not-allowed;}
+  .whatsapp-btn{
+    display:block;
+    width:100%;
+    text-align:center;
+    text-decoration:none;
+    padding:11px;
+    background:var(--negro);
+    color:var(--blanco);
+    border-radius:var(--radius);
+    font-weight:700;
+    font-size:14px;
+    margin-top:10px;
+    transition:box-shadow .25s ease;
+  }
+  .whatsapp-btn:hover{background:#2c2c2c;}
+  .whatsapp-btn.destacado{
+    box-shadow:0 0 0 3px rgba(251,203,0,.6);
+  }
+  .paso{
+    display:none;
+    text-align:center;
+    font-size:12.5px;
+    font-weight:700;
+    color:var(--negro);
+    margin-top:10px;
+  }
+  .paso.visible{display:block;}
+  .msg{
+    margin-top:14px;
+    padding:12px 14px;
+    border-radius:var(--radius);
+    font-size:13px;
+    font-weight:600;
+    display:none;
+  }
+  .msg.ok{display:block;background:#e7f9e7;border:1px solid #2e7d32;color:#1b5e20;}
+  .msg.err{display:block;background:#fdeaea;border:1px solid var(--rojo);color:#8a1c17;}
+  .notas-corte{
+    background:#e9f4fb;
+    border:1px solid #b9dcef;
+    border-radius:var(--radius);
+    padding:12px 14px;
+    margin-top:14px;
+    font-size:12.5px;
+    color:#1b4a63;
+    line-height:1.6;
+  }
+  .notas-corte strong{color:var(--negro);}
+  .foot{
+    text-align:center;
+    font-size:12px;
+    color:#555;
+    margin-top:20px;
+  }
+  .hp-field{
+    position:absolute;
+    left:-9999px;
+    top:-9999px;
+    opacity:0;
+    height:0;
+    width:0;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Clever CNC</h1>
+  <p>Solicitá tu corte online y recibí tu presupuesto</p>
+</div>
+
+<div class="wrap">
+  <div class="intro">
+    Cargá los datos de tu proyecto y las medidas de cada pieza. Podés agregar tantos cortes como necesites.
+    El pedido se confirma en dos pasos: primero lo enviás acá, y después confirmás por WhatsApp.
+  </div>
+
+  <form id="corteForm">
+    <input type="text" class="hp-field" name="{{ honeypot_field }}" id="hpField" autocomplete="off" tabindex="-1" aria-hidden="true">
+    <div class="card">
+      <h2>Tus datos</h2>
+      <div class="grid2">
+        <div class="field">
+          <label for="contacto">Nombre y apellido *</label>
+          <input type="text" id="contacto" name="contacto" required>
+        </div>
+        <div class="field">
+          <label for="telefono">Teléfono / WhatsApp *</label>
+          <input type="tel" id="telefono" name="telefono" required placeholder="379...">
+        </div>
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <input type="email" id="email" name="email">
+        </div>
+        <div class="field">
+          <label for="fecha">Fecha</label>
+          <input type="date" id="fecha" name="fecha">
+        </div>
+        <div class="field" style="grid-column:1 / -1;">
+          <label for="material">Placa</label>
+          <select id="material" name="material">
+            <option value="MDF">MDF</option>
+            <option value="Acrilico">Acrílico</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cortes solicitados</h2>
+      <p class="hint">Cargá una fila por pieza. Largo y ancho arrancan con la medida de la placa completa de MDF (2750 × 1830 mm) — ajustalos al tamaño real de cada pieza. L1/L2 son los cantos de los lados largos y A1/A2 los de los lados anchos. Podés escribir directo en la tabla o pegar (Ctrl+V) varias filas copiadas desde Excel, en ese orden: descripción, cantidad, largo, ancho.</p>
+      <div class="table-wrap">
+        <table class="cortes" id="cortesTable">
+          <thead>
+            <tr>
+              <th class="col-num">#</th>
+              <th class="col-desc">Descripción</th>
+              <th>Cant.</th>
+              <th>Largo (mm)</th>
+              <th>Ancho (mm)</th>
+              <th title="Canto en lado largo 1">L1</th>
+              <th title="Canto en lado largo 2">L2</th>
+              <th title="Canto en lado ancho 1">A1</th>
+              <th title="Canto en lado ancho 2">A2</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cortesBody"></tbody>
+        </table>
+      </div>
+      <button type="button" class="add-btn" id="addCorteBtn">+ Agregar fila</button>
+      <div class="notas-corte">
+        <strong>Notas:</strong><br>
+        - Corte mínimo en 50 mm.<br>
+        - El tapacanto (L1/L2/A1/A2) no descuenta las medidas cargadas — cargá la medida final de la pieza.
+      </div>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn">Enviar solicitud</button>
+    <a href="#" class="whatsapp-btn" id="whatsappBtn" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+    <div class="paso" id="pasoIndicador"></div>
+
+    <div class="msg" id="msgBox"></div>
+  </form>
+
+  <div class="foot">Clever CNC — info@clevercnc.com.ar — (379) 409-9636</div>
+</div>
+
+<template id="filaTemplate">
+  <tr data-corte>
+    <td class="col-num"></td>
+    <td class="col-desc"><input type="text" class="f-descripcion" placeholder="lado 1, tapa..."></td>
+    <td><input type="number" class="f-cantidad" min="1" value="1"></td>
+    <td><input type="number" class="f-alto" min="0" step="1" value="2750"></td>
+    <td><input type="number" class="f-ancho" min="0" step="1" value="1830"></td>
+    <td class="col-canto"><input type="checkbox" class="f-canto1" title="Canto lado largo 1 (L1)"></td>
+    <td class="col-canto"><input type="checkbox" class="f-canto2" title="Canto lado largo 2 (L2)"></td>
+    <td class="col-canto"><input type="checkbox" class="f-canto3" title="Canto lado ancho 1 (A1)"></td>
+    <td class="col-canto"><input type="checkbox" class="f-canto4" title="Canto lado ancho 2 (A2)"></td>
+    <td class="col-del"><button type="button" class="btn-del-row" title="Eliminar fila">✕</button></td>
+  </tr>
+</template>
+
+<script>
+  const HONEYPOT_FIELD = "{{ honeypot_field }}";
+  const WHATSAPP_NUMBER = "{{ whatsapp_number }}";
+
+  const body = document.getElementById('cortesBody');
+  const template = document.getElementById('filaTemplate');
+  const addBtn = document.getElementById('addCorteBtn');
+  const form = document.getElementById('corteForm');
+  const msgBox = document.getElementById('msgBox');
+  const submitBtn = document.getElementById('submitBtn');
+  const whatsappBtn = document.getElementById('whatsappBtn');
+  const pasoIndicador = document.getElementById('pasoIndicador');
+  const fechaInput = document.getElementById('fecha');
+  const hpField = document.getElementById('hpField');
+
+  function fechaHoyLocal(){
+    const hoy = new Date();
+    const offset = hoy.getTimezoneOffset() * 60000;
+    return new Date(hoy - offset).toISOString().slice(0, 10);
+  }
+  fechaInput.value = fechaHoyLocal();
+
+  function renumerar(){
+    body.querySelectorAll('[data-corte]').forEach((el, i) => {
+      el.querySelector('.col-num').textContent = i + 1;
+    });
+  }
+
+  function agregarCorte(valores){
+    const node = template.content.cloneNode(true);
+    const el = node.querySelector('[data-corte]');
+
+    if (valores){
+      el.querySelector('.f-descripcion').value = valores.descripcion || '';
+      el.querySelector('.f-cantidad').value = valores.cantidad || 1;
+      el.querySelector('.f-alto').value = valores.alto || '2750';
+      el.querySelector('.f-ancho').value = valores.ancho || '1830';
+      el.querySelector('.f-canto1').checked = !!valores.canto_1;
+      el.querySelector('.f-canto2').checked = !!valores.canto_2;
+      el.querySelector('.f-canto3').checked = !!valores.canto_3;
+      el.querySelector('.f-canto4').checked = !!valores.canto_4;
+    }
+
+    el.querySelector('.btn-del-row').addEventListener('click', () => {
+      if (body.querySelectorAll('[data-corte]').length <= 1) return;
+      el.remove();
+      renumerar();
+    });
+
+    body.appendChild(node);
+    renumerar();
+    return body.lastElementChild;
+  }
+
+  function leerCorte(el){
+    return {
+      descripcion: el.querySelector('.f-descripcion').value,
+      cantidad: el.querySelector('.f-cantidad').value,
+      alto: el.querySelector('.f-alto').value,
+      ancho: el.querySelector('.f-ancho').value,
+      canto_1: el.querySelector('.f-canto1').checked,
+      canto_2: el.querySelector('.f-canto2').checked,
+      canto_3: el.querySelector('.f-canto3').checked,
+      canto_4: el.querySelector('.f-canto4').checked,
+    };
+  }
+
+  function filaSinTocar(c){
+    const sinDescripcion = !c.descripcion || !c.descripcion.trim();
+    const medidaPorDefecto = String(c.alto) === '2750' && String(c.ancho) === '1830';
+    const cantidadPorDefecto = !c.cantidad || String(c.cantidad) === '1';
+    const sinCantos = !c.canto_1 && !c.canto_2 && !c.canto_3 && !c.canto_4;
+    return sinDescripcion && medidaPorDefecto && cantidadPorDefecto && sinCantos;
+  }
+
+  function leerTodosLosCortes(){
+    return Array.from(body.querySelectorAll('[data-corte]'))
+      .map(leerCorte)
+      .filter(c => !filaSinTocar(c));
+  }
+
+  addBtn.addEventListener('click', () => agregarCorte());
+  const FILAS_INICIALES = 10;
+  for (let i = 0; i < FILAS_INICIALES; i++) agregarCorte();
+
+  const CAMPOS_INPUT = ['f-descripcion','f-cantidad','f-alto','f-ancho','f-canto1','f-canto2','f-canto3','f-canto4'];
+  const ES_CHECKBOX = {'f-canto1':true,'f-canto2':true,'f-canto3':true,'f-canto4':true};
+
+  function esVerdadero(valor){
+    const v = (valor || '').toString().trim().toLowerCase();
+    return ['x','si','sí','1','true','yes'].includes(v);
+  }
+
+  body.addEventListener('paste', (e) => {
+    const texto = (e.clipboardData || window.clipboardData).getData('text');
+    if (!texto || !texto.includes('\t') && !texto.includes('\n')) return;
+    e.preventDefault();
+
+    const filaOrigen = e.target.closest('tr[data-corte]');
+    const filasActuales = Array.from(body.querySelectorAll('[data-corte]'));
+    let filaIdx = filaOrigen ? filasActuales.indexOf(filaOrigen) : filasActuales.length - 1;
+    let colIdx = 0;
+    if (filaOrigen){
+      const inputs = Array.from(filaOrigen.querySelectorAll('input'));
+      const activo = inputs.indexOf(document.activeElement);
+      colIdx = activo >= 0 ? activo : 0;
+    }
+
+    const filasPegadas = texto.replace(/\r/g,'').split('\n').filter(f => f.trim() !== '');
+
+    filasPegadas.forEach((filaTexto, i) => {
+      const celdas = filaTexto.split('\t');
+      let filaEl = filasActuales[filaIdx + i];
+      if (!filaEl){
+        filaEl = agregarCorte();
+        filasActuales.push(filaEl);
+      }
+      celdas.forEach((valor, j) => {
+        const campo = CAMPOS_INPUT[colIdx + j];
+        if (!campo) return;
+        const input = filaEl.querySelector('.' + campo);
+        if (!input) return;
+        if (ES_CHECKBOX[campo]) input.checked = esVerdadero(valor);
+        else input.value = valor.trim();
+      });
+    });
+
+    renumerar();
+    actualizarLinkWhatsapp();
+  });
+
+  function construirResumenTexto(datos){
+    let txt = `Solicitud de corte — Clever CNC\n`;
+    txt += `Nombre: ${datos.contacto}\n`;
+    txt += `Teléfono: ${datos.telefono}\n`;
+    if (datos.email) txt += `Email: ${datos.email}\n`;
+    if (datos.fecha) txt += `Fecha necesaria: ${datos.fecha}\n`;
+    txt += `Placa: ${datos.material}\n`;
+    txt += `\nCortes:\n`;
+    const ETIQUETAS_CANTO = {canto_1:'L1', canto_2:'L2', canto_3:'A1', canto_4:'A2'};
+    datos.cortes.forEach((c, i) => {
+      const cantos = ['canto_1','canto_2','canto_3','canto_4']
+        .filter(k => c[k]).map(k => ETIQUETAS_CANTO[k]).join(', ') || '-';
+      txt += `${i+1}) ${c.descripcion || 'sin descripción'} — cant: ${c.cantidad}, `
+        + `${c.alto || '?'}x${c.ancho || '?'} mm (largo x ancho), cantos: ${cantos}\n`;
+    });
+    return txt;
+  }
+
+  function recolectarDatos(){
+    const datos = {
+      contacto: document.getElementById('contacto').value.trim(),
+      telefono: document.getElementById('telefono').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      fecha: document.getElementById('fecha').value,
+      material: document.getElementById('material').value,
+      cortes: leerTodosLosCortes(),
+    };
+    datos[HONEYPOT_FIELD] = hpField.value;
+    return datos;
+  }
+
+  function actualizarLinkWhatsapp(){
+    const datos = recolectarDatos();
+    const texto = encodeURIComponent(construirResumenTexto(datos));
+    whatsappBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
+  }
+  form.addEventListener('input', actualizarLinkWhatsapp);
+  actualizarLinkWhatsapp();
+
+  function mostrarMensaje(tipo, texto){
+    msgBox.className = 'msg ' + tipo;
+    msgBox.textContent = texto;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const datos = recolectarDatos();
+
+    if (!datos.contacto || !datos.telefono){
+      mostrarMensaje('err', 'Completá al menos nombre y teléfono.');
+      return;
+    }
+    if (datos.cortes.length === 0){
+      mostrarMensaje('err', 'Agregá al menos un corte.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+
+    try{
+      const res = await fetch('/solicitudes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(datos),
+      });
+      if (!res.ok){
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail ? JSON.stringify(err.detail) : ('status ' + res.status));
+      }
+
+      mostrarMensaje('ok', '¡Listo! Recibimos tu solicitud.');
+      pasoIndicador.textContent = 'Paso 2 de 2 — tocá "Enviar por WhatsApp" para confirmar tu pedido.';
+      pasoIndicador.classList.add('visible');
+      whatsappBtn.classList.add('destacado');
+      submitBtn.textContent = 'Solicitud enviada ✓';
+    }catch(err){
+      mostrarMensaje('err', 'No pudimos enviar la solicitud automáticamente. Probá con el botón de WhatsApp.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Enviar solicitud';
+    }
+  });
+</script>
+
+</body>
+</html>
