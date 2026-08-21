@@ -86,9 +86,18 @@
       {% if solicitud.estado == 'confirmada' and not bloqueada %}
       <button type="button" onclick="cancelarSolicitud({{ solicitud.id }})" class="peligro">Cancelar solicitud</button>
       {% endif %}
+      {% if solicitud.estado == 'confirmada' %}
+      <button type="button" onclick="enviarAOdoo({{ solicitud.id }})">
+        {{ 'Reenviar a Odoo' if solicitud.odoo_pedido_id else 'Enviar presupuesto a Odoo' }}
+      </button>
+      {% endif %}
       <a href="/solicitudes/{{ solicitud.id }}/csv">Descargar CSV</a>
       <button type="button" class="peligro" onclick="eliminarSolicitud({{ solicitud.id }})">Eliminar definitivamente</button>
     </div>
+
+    {% if solicitud.odoo_pedido_nombre %}
+    <div class="msg ok">Enviado a Odoo como <strong>{{ solicitud.odoo_pedido_nombre }}</strong>.</div>
+    {% endif %}
 
     <div class="msg" id="msgBox"></div>
   </div>
@@ -154,6 +163,15 @@ async function cancelarSolicitud(id){
 async function eliminarSolicitud(id){
   if (!confirm('¿Eliminar esta solicitud de forma permanente?')) return;
   if (await accion(`/solicitudes/${id}`, 'DELETE')) location.href = '/dashboard';
+}
+async function enviarAOdoo(id){
+  const res = await fetch(`/solicitudes/${id}/odoo`, {method: 'POST'});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok){
+    mostrarMensaje('err', data.detail || 'Ocurrió un error al enviar a Odoo');
+    return;
+  }
+  mostrarMensaje('ok', `Enviado a Odoo como ${data.odoo_pedido_nombre}.`);
 }
 </script>
 

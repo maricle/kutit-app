@@ -49,6 +49,8 @@ Two tables, created automatically on startup (`db.init_db`, called from the Fast
    no longer be edited or have its stage changed.
 5. An order can be cancelled at any point (`POST /solicitudes/{id}/cancelar`),
    or deleted outright (`DELETE /solicitudes/{id}`).
+6. Once `confirmada`, staff can push the order to Odoo as a quotation
+   (`POST /solicitudes/{id}/odoo`) — see **Odoo sync** below.
 
 ## Auth
 
@@ -77,6 +79,31 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | POST | `/solicitudes/{id}/etapa` | cookie | Move production stage (blocked once `terminado`) |
 | POST | `/solicitudes/{id}/cancelar` | cookie | Cancel order with optional reason |
 | DELETE | `/solicitudes/{id}` | cookie | Delete order and its cut lines |
+| POST | `/solicitudes/{id}/odoo` | cookie | Push a confirmed order to Odoo as a quotation |
+
+## Odoo sync
+
+From the order detail page, a **confirmed** order can be sent to Odoo
+(`odoo_client.crear_presupuesto`) as a `sale.order` (quotation):
+
+- Authenticates over XML-RPC (`ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`,
+  `ODOO_API_KEY`) — runs in a worker thread since `xmlrpc.client` is blocking.
+- Finds or creates a `res.partner` by matching `telefono` (falls back to
+  creating one from `contacto`/`telefono`/`email`).
+- Adds one order line for the CNC cutting service, looked up in Odoo by
+  `default_code` (`ODOO_PRODUCT_CORTE_CODE`, default `cnc`) rather than a
+  hardcoded numeric ID — product IDs aren't stable across Odoo instances.
+  Quantity is the total piece count across all cut lines; the line
+  description lists every cut (size, quantity, edge-banding).
+- If any cut has edge-banding (`canto_1..4`), adds a second line for
+  `ODOO_PRODUCT_CANTO_NOMBRE` (looked up by exact product name, since it has
+  no `default_code`), quantity = total number of banded edges across the
+  order.
+- The resulting Odoo order id/name is saved back on the order
+  (`odoo_pedido_id`, `odoo_pedido_nombre`) so re-sending is visible as
+  "Reenviar a Odoo" rather than silently duplicating the quotation — note
+  this only prevents *accidental* re-clicks from being confusing; clicking it
+  again still creates a second `sale.order` in Odoo.
 
 ## Configuration (`config.py` / `.env`)
 
@@ -89,6 +116,9 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | `HONEYPOT_FIELD_NAME` | Hidden form field name used to silently drop bot submissions |
 | `ALLOWED_ORIGIN` | CORS allow-origin for the public form |
 | `WHATSAPP_NUMBER` | Number shown to customers for order confirmation |
+| `ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` | Odoo XML-RPC connection for the "send to Odoo" button |
+| `ODOO_PRODUCT_CORTE_CODE` | `default_code` of the CNC cutting product in Odoo (default `cnc`) |
+| `ODOO_PRODUCT_CANTO_NOMBRE` | Exact product name of the edge-banding service in Odoo |
 
 ## Running locally
 

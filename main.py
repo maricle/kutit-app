@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 from contextlib import asynccontextmanager
@@ -11,6 +12,7 @@ from pydantic import ValidationError
 
 import config
 import db
+import odoo_client
 import security
 from models import CancelarIn, EtapaIn, FilaCorte, SolicitudCorteIn, SolicitudCorteUpdate
 
@@ -213,3 +215,16 @@ async def eliminar(solicitud_id: int):
     await obtener_o_404(solicitud_id)
     await db.eliminar_solicitud(solicitud_id)
     return {"ok": True}
+
+
+@app.post("/solicitudes/{solicitud_id}/odoo", dependencies=[Depends(requerir_sesion)])
+async def enviar_a_odoo(solicitud_id: int):
+    solicitud = await obtener_o_404(solicitud_id)
+    if solicitud["estado"] != "confirmada":
+        raise HTTPException(status_code=409, detail="Solo se puede enviar a Odoo una solicitud confirmada")
+    try:
+        resultado = await asyncio.to_thread(odoo_client.crear_presupuesto, solicitud)
+    except odoo_client.OdooError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    await db.guardar_odoo_pedido(solicitud_id, resultado["odoo_pedido_id"], resultado["odoo_pedido_nombre"])
+    return {"ok": True, **resultado}

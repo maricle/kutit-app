@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     estado TEXT NOT NULL DEFAULT 'esperando_confirmacion_whatsapp',
     etapa_produccion TEXT,
     motivo_cancelacion TEXT,
+    odoo_pedido_id INTEGER,
+    odoo_pedido_nombre TEXT,
     creado_en TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -54,6 +56,11 @@ async def init_db():
     client = await get_client()
     await client.execute(SCHEMA_SOLICITUDES)
     await client.execute(SCHEMA_LINEAS)
+    for columna in ("odoo_pedido_id INTEGER", "odoo_pedido_nombre TEXT"):
+        try:
+            await client.execute(f"ALTER TABLE solicitudes ADD COLUMN {columna}")
+        except Exception:
+            pass  # la columna ya existe
 
 
 async def close_db():
@@ -162,3 +169,11 @@ async def eliminar_solicitud(solicitud_id: int):
     client = await get_client()
     await client.execute("DELETE FROM lineas_corte WHERE solicitud_id = ?", [solicitud_id])
     await client.execute("DELETE FROM solicitudes WHERE id = ?", [solicitud_id])
+
+
+async def guardar_odoo_pedido(solicitud_id: int, odoo_pedido_id: int, odoo_pedido_nombre: str):
+    client = await get_client()
+    await client.execute(
+        "UPDATE solicitudes SET odoo_pedido_id = ?, odoo_pedido_nombre = ? WHERE id = ?",
+        [odoo_pedido_id, odoo_pedido_nombre, solicitud_id],
+    )
