@@ -11,9 +11,13 @@
 
 <div class="topbar">
   <h1>Kutit — Panel de producción</h1>
-  <form method="post" action="/dashboard/logout" style="margin:0;">
-    <a href="#" onclick="this.closest('form').submit(); return false;">Cerrar sesión</a>
-  </form>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <a href="/dashboard/solicitudes/nueva">+ Nueva solicitud</a>
+    <a href="/dashboard/precios">Precios</a>
+    <form method="post" action="/dashboard/logout" style="margin:0;">
+      <a href="#" onclick="this.closest('form').submit(); return false;">Cerrar sesión</a>
+    </form>
+  </div>
 </div>
 
 <div class="kanban">

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu pedido #{{ solicitud.id }} — Clever CNC</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --amarillo:#FBCB00;
+    --negro:#111111;
+    --texto:#212529;
+    --blanco:#ffffff;
+    --gris:#f5f5f5;
+    --gris-borde:rgba(33,37,41,.15);
+    --radius:6.4px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Open Sans",sans-serif;background:var(--gris);color:var(--texto);}
+  h1,h2,.section-titulo{font-family:Montserrat,sans-serif;}
+  .topbar{
+    background:var(--negro);
+    padding:20px 20px 34px;
+    text-align:center;
+    position:relative;
+    clip-path:polygon(0 0,100% 0,100% 88%,0 100%);
+  }
+  .volver-clever{
+    position:absolute;top:14px;left:16px;
+    color:var(--blanco);opacity:.8;font-size:12.5px;text-decoration:none;
+  }
+  .volver-clever:hover{opacity:1;text-decoration:underline;}
+  .topbar h1{margin:0;font-size:24px;font-weight:800;color:var(--amarillo);}
+  .topbar p{margin:6px 0 0;color:var(--blanco);font-size:13px;}
+  .wrap{max-width:720px;margin:0 auto;padding:14px 16px 60px;}
+  .estado-badge{
+    display:inline-block;
+    background:var(--blanco);
+    border:1px solid var(--gris-borde);
+    border-left:5px solid var(--amarillo);
+    border-radius:var(--radius);
+    padding:10px 16px;
+    margin-bottom:20px;
+    font-weight:700;
+    font-size:13.5px;
+  }
+  .card{
+    background:var(--blanco);
+    border:1px solid var(--gris-borde);
+    border-radius:var(--radius);
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .section-titulo{
+    display:flex;align-items:center;gap:8px;
+    font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+    color:var(--negro);margin:0 0 14px;padding-bottom:10px;
+    border-bottom:2px solid var(--amarillo);
+  }
+  .section-num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;
+    background:var(--negro);color:var(--amarillo);font-size:11px;
+  }
+  .datos-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;font-size:13.5px;}
+  @media (max-width:520px){.datos-grid{grid-template-columns:1fr;}}
+  .datos-grid dt{color:#777;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;}
+  .datos-grid dd{margin:2px 0 0;font-weight:600;}
+  table.cortes{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.cortes th{
+    background:var(--negro);color:var(--amarillo);font-family:Montserrat,sans-serif;
+    font-weight:700;font-size:11px;text-transform:uppercase;padding:8px 6px;text-align:center;
+  }
+  table.cortes th.col-desc{text-align:left;padding-left:10px;}
+  table.cortes td{border-bottom:1px solid var(--gris-borde);padding:7px 6px;text-align:center;}
+  table.cortes td.col-desc{text-align:left;}
+  .table-wrap{overflow-x:auto;border:1px solid var(--gris-borde);border-radius:var(--radius);}
+  .whatsapp-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;text-decoration:none;padding:12px;background:var(--negro);color:var(--blanco);
+    border-radius:var(--radius);font-weight:700;font-size:14px;font-family:Montserrat,sans-serif;
+  }
+  .whatsapp-btn:hover{background:#2c2c2c;}
+  .nota{font-size:12px;color:#777;margin-top:10px;line-height:1.5;}
+  .foot{text-align:center;font-size:12px;color:#555;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="{{ clever_site_url }}" class="volver-clever">← Volver a Clever CNC</a>
+  <h1>Clever CNC</h1>
+  <p>Tu pedido #{{ solicitud.id }}</p>
+</div>
+
+<div class="wrap">
+  <div class="estado-badge">
+    Estado: {{ estado_label }}{% if etapa_label %} — {{ etapa_label }}{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="section-titulo"><span class="section-num">1</span> Datos y material</div>
+    <dl class="datos-grid">
+      <div><dt>Nombre y apellido</dt><dd>{{ solicitud.contacto }}</dd></div>
+      <div><dt>Teléfono</dt><dd>{{ solicitud.telefono }}</dd></div>
+      {% if solicitud.email %}<div><dt>Email</dt><dd>{{ solicitud.email }}</dd></div>{% endif %}
+      {% if solicitud.fecha %}<div><dt>Fecha necesaria</dt><dd>{{ solicitud.fecha }}</dd></div>{% endif %}
+      <div><dt>Placa</dt><dd>{{ solicitud.material if solicitud.con_material else 'la trae el cliente' }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="card">
+    <div class="section-titulo"><span class="section-num">2</span> Medidas y canto</div>
+    <div class="table-wrap">
+      <table class="cortes">
+        <thead>
+          <tr>
+            <th class="col-desc">Descripción</th><th>Cant.</th><th>Largo</th><th>Ancho</th>
+            <th>L1</th><th>L2</th><th>A1</th><th>A2</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in solicitud.cortes %}
+          <tr>
+            <td class="col-desc">{{ c.descripcion or 'sin descripción' }}</td>
+            <td>{{ c.cantidad }}</td>
+            <td>{{ c.alto }}</td>
+            <td>{{ c.ancho }}</td>
+            <td>{{ '✓' if c.canto_1 }}</td>
+            <td>{{ '✓' if c.canto_2 }}</td>
+            <td>{{ '✓' if c.canto_3 }}</td>
+            <td>{{ '✓' if c.canto_4 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-titulo"><span class="section-num">3</span> Presupuesto</div>
+    {% set mensaje = "Hola! Quiero coordinar el pago y entrega de mi pedido #" ~ solicitud.id ~ ".\nVer mi pedido: " ~ (request.url | string) %}
+    <a href="https://wa.me/{{ whatsapp_number }}?text={{ mensaje | urlencode }}" class="whatsapp-btn" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.44-1.42a9.87 9.87 0 0 0 4.6 1.17h.01c5.46 0 9.9-4.45 9.9-9.91S17.5 2 12.04 2zm0 18.02h-.01a8.1 8.1 0 0 1-4.12-1.13l-.3-.18-3.05.8.82-2.97-.19-.31a8.13 8.13 0 0 1-1.25-4.32c0-4.5 3.66-8.16 8.17-8.16 4.5 0 8.16 3.66 8.16 8.16 0 4.5-3.66 8.11-8.23 8.11zm4.48-6.11c-.25-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.13-.16.25-.63.8-.78.96-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.31-.01-.47-.01a.9.9 0 0 0-.65.31c-.22.25-.86.84-.86 2.05s.88 2.38 1 2.54c.12.16 1.73 2.64 4.19 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28z"/></svg>
+      Coordinar pago y entrega por WhatsApp
+    </a>
+    <div class="nota">El precio final se coordina por WhatsApp — el estimado mostrado al cargar el pedido era orientativo.</div>
+  </div>
+
+  <div class="foot">Clever CNC — info@clevercnc.com.ar — (379) 409-9636</div>
+</div>
+
+</body>
+</html>

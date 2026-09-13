@@ -36,6 +36,17 @@
     clip-path:polygon(0 0,100% 0,100% 88%,0 100%);
     padding-bottom:34px;
   }
+  .volver-clever{
+    position:absolute;
+    top:14px;
+    left:16px;
+    color:var(--blanco);
+    opacity:.8;
+    font-size:12.5px;
+    text-decoration:none;
+    font-family:"Open Sans",sans-serif;
+  }
+  .volver-clever:hover{opacity:1;text-decoration:underline;}
   .topbar h1{
     margin:0;
     font-size:26px;
@@ -110,6 +121,15 @@
   }
   textarea{resize:vertical;min-height:70px;}
   .field{margin-bottom:12px;}
+  .check-inline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--texto);
+  }
+  .check-inline input[type=checkbox]{width:16px;height:16px;flex:none;}
   .hint{
     font-size:12.5px;
     color:#666;
@@ -216,7 +236,10 @@
   .submit-btn:hover{background:#e6bd00;}
   .submit-btn:disabled{opacity:.6;cursor:not-allowed;}
   .whatsapp-btn{
-    display:block;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
     width:100%;
     text-align:center;
     text-decoration:none;
@@ -230,6 +253,8 @@
     transition:box-shadow .25s ease;
   }
   .whatsapp-btn:hover{background:#2c2c2c;}
+  .whatsapp-btn svg{flex:none;}
+  .whatsapp-btn[hidden]{display:none;}
   .whatsapp-btn.destacado{
     box-shadow:0 0 0 3px rgba(251,203,0,.6);
   }
@@ -242,6 +267,15 @@
     margin-top:10px;
   }
   .paso.visible{display:block;}
+  .ver-pedido-link{
+    display:block;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--negro);
+    margin-top:8px;
+    text-decoration:underline;
+  }
+  .ver-pedido-link[hidden]{display:none;}
   .msg{
     margin-top:14px;
     padding:12px 14px;
@@ -263,6 +297,123 @@
     line-height:1.6;
   }
   .notas-corte strong{color:var(--negro);}
+  .estimado{
+    background:var(--blanco);
+    border:1px solid var(--gris-borde);
+    border-left:5px solid var(--amarillo);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    margin-top:14px;
+    margin-bottom:6px;
+  }
+  .estimado-titulo{
+    font-family:Montserrat,sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:#777;
+    margin-bottom:10px;
+  }
+  .estimado-tabla-wrap{overflow-x:auto;}
+  table.estimado-tabla{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12.5px;
+  }
+  table.estimado-tabla th{
+    text-align:right;
+    font-weight:600;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.2px;
+    color:#999;
+    padding:0 4px 6px;
+    border-bottom:1px solid var(--gris-borde);
+    white-space:nowrap;
+  }
+  table.estimado-tabla th:first-child,
+  table.estimado-tabla td:first-child{text-align:left;}
+  table.estimado-tabla td{
+    text-align:right;
+    padding:7px 4px;
+    border-bottom:1px solid var(--gris-borde);
+    color:var(--texto);
+    white-space:nowrap;
+  }
+  table.estimado-tabla td:first-child{
+    white-space:normal;
+    font-weight:600;
+  }
+  .estimado-total-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:2px solid var(--negro);
+    font-family:Montserrat,sans-serif;
+    font-weight:800;
+    font-size:17px;
+    color:var(--negro);
+  }
+  .estimado-nota{
+    font-size:11.5px;
+    color:#777;
+    margin-top:8px;
+    font-style:italic;
+    line-height:1.5;
+  }
+  .wizard-steps{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+  }
+  .wizard-step{
+    flex:1;
+    text-align:center;
+    font-size:11.5px;
+    font-weight:600;
+    color:#999;
+    padding-bottom:8px;
+    border-bottom:3px solid var(--gris-borde);
+    font-family:Montserrat,sans-serif;
+  }
+  .wizard-step-num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:19px;
+    height:19px;
+    border-radius:50%;
+    background:var(--gris-borde);
+    color:var(--texto);
+    font-size:11px;
+    margin-right:4px;
+  }
+  .wizard-step.activo{color:var(--negro);border-bottom-color:var(--amarillo);}
+  .wizard-step.activo .wizard-step-num{background:var(--amarillo);color:var(--negro);}
+  .wizard-step.completado .wizard-step-num{background:var(--negro);color:var(--amarillo);}
+  .wizard-nav{
+    display:flex;
+    gap:10px;
+    margin-top:16px;
+  }
+  .wizard-btn{
+    flex:1;
+    padding:12px;
+    border-radius:var(--radius);
+    border:1px solid var(--gris-borde);
+    background:var(--blanco);
+    color:var(--texto);
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    font-family:"Open Sans",sans-serif;
+  }
+  .wizard-btn-siguiente{background:var(--amarillo);border-color:var(--amarillo);color:var(--texto);}
+  .wizard-btn-siguiente:hover{background:#e6bd00;}
+  .wizard-btn-atras:hover{background:var(--gris);}
   .foot{
     text-align:center;
     font-size:12px;
@@ -282,18 +433,27 @@
 <body>
 
 <div class="topbar">
+  <a href="{{ clever_site_url }}" class="volver-clever">← Volver a Clever CNC</a>
   <h1>Clever CNC</h1>
   <p>Solicitá tu corte online y recibí tu presupuesto</p>
 </div>
 
 <div class="wrap">
   <div class="intro">
-    Cargá los datos de tu proyecto y las medidas de cada pieza. Podés agregar tantos cortes como necesites.
-    El pedido se confirma en dos pasos: primero lo enviás acá, y después confirmás por WhatsApp.
+    Completá tus datos, cargá las medidas de cada pieza y mirá el presupuesto estimado, en 3 pasos rápidos.
+    Al confirmar acá, coordinás el pago y la entrega por WhatsApp.
   </div>
 
   <form id="corteForm">
     <input type="text" class="hp-field" name="{{ honeypot_field }}" id="hpField" autocomplete="off" tabindex="-1" aria-hidden="true">
+
+    <div class="wizard-steps" id="wizardSteps">
+      <div class="wizard-step" data-step="1"><span class="wizard-step-num">1</span> Datos y material</div>
+      <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span> Medidas y canto</div>
+      <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span> Presupuesto</div>
+    </div>
+
+    <div data-paso-contenido="1">
     <div class="card">
       <h2>Tus datos</h2>
       <div class="grid2">
@@ -306,7 +466,7 @@
           <input type="tel" id="telefono" name="telefono" required placeholder="379...">
         </div>
         <div class="field">
-          <label for="email">Correo electrónico</label>
+          <label for="email">Correo electrónico (opcional)</label>
           <input type="email" id="email" name="email">
         </div>
         <div class="field">
@@ -314,6 +474,12 @@
           <input type="date" id="fecha" name="fecha">
         </div>
         <div class="field" style="grid-column:1 / -1;">
+          <label class="check-inline">
+            <input type="checkbox" id="conMaterial" checked>
+            Necesito que Clever CNC provea el material (si lo destildás, traés tu propia placa)
+          </label>
+        </div>
+        <div class="field" id="materialField" style="grid-column:1 / -1;">
           <label for="material">Placa</label>
           <select id="material" name="material">
             <option value="MDF">MDF</option>
@@ -322,7 +488,9 @@
         </div>
       </div>
     </div>
+    </div>
 
+    <div data-paso-contenido="2">
     <div class="card">
       <h2>Cortes solicitados</h2>
       <p class="hint">Cargá una fila por pieza. Largo y ancho arrancan con la medida de la placa completa de MDF (2750 × 1830 mm) — ajustalos al tamaño real de cada pieza. L1/L2 son los cantos de los lados largos y A1/A2 los de los lados anchos. Podés escribir directo en la tabla o pegar (Ctrl+V) varias filas copiadas desde Excel, en ese orden: descripción, cantidad, largo, ancho.</p>
@@ -352,12 +520,41 @@
         - El tapacanto (L1/L2/A1/A2) no descuenta las medidas cargadas — cargá la medida final de la pieza.
       </div>
     </div>
+    </div>
 
-    <button type="submit" class="submit-btn" id="submitBtn">Enviar solicitud</button>
-    <a href="#" class="whatsapp-btn" id="whatsappBtn" target="_blank" rel="noopener">Enviar por WhatsApp</a>
+    <div data-paso-contenido="3">
+    <div class="estimado" id="estimadoBox" hidden>
+      <div class="estimado-titulo">Presupuesto estimado</div>
+      <div class="estimado-tabla-wrap">
+        <table class="estimado-tabla">
+          <thead>
+            <tr><th>Concepto</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th></tr>
+          </thead>
+          <tbody id="estimadoTablaBody"></tbody>
+        </table>
+      </div>
+      <div class="estimado-total-row">
+        <span>Total estimado</span>
+        <span id="estimadoTotal">$0</span>
+      </div>
+      <div class="estimado-nota" id="estimadoNota"></div>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn">Confirmar solicitud</button>
+    <a href="#" class="whatsapp-btn" id="whatsappBtn" target="_blank" rel="noopener" hidden>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.44-1.42a9.87 9.87 0 0 0 4.6 1.17h.01c5.46 0 9.9-4.45 9.9-9.91S17.5 2 12.04 2zm0 18.02h-.01a8.1 8.1 0 0 1-4.12-1.13l-.3-.18-3.05.8.82-2.97-.19-.31a8.13 8.13 0 0 1-1.25-4.32c0-4.5 3.66-8.16 8.17-8.16 4.5 0 8.16 3.66 8.16 8.16 0 4.5-3.66 8.11-8.23 8.11zm4.48-6.11c-.25-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.13-.16.25-.63.8-.78.96-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.31-.01-.47-.01a.9.9 0 0 0-.65.31c-.22.25-.86.84-.86 2.05s.88 2.38 1 2.54c.12.16 1.73 2.64 4.19 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28z"/></svg>
+  Coordinar pago y entrega por WhatsApp
+</a>
     <div class="paso" id="pasoIndicador"></div>
+    <a href="#" class="ver-pedido-link" id="verPedidoLink" hidden>Ver mi pedido</a>
+    </div>
 
     <div class="msg" id="msgBox"></div>
+
+    <div class="wizard-nav">
+      <button type="button" class="wizard-btn wizard-btn-atras" id="btnAnterior" hidden>← Atrás</button>
+      <button type="button" class="wizard-btn wizard-btn-siguiente" id="btnSiguiente">Siguiente →</button>
+    </div>
   </form>
 
   <div class="foot">Clever CNC — info@clevercnc.com.ar — (379) 409-9636</div>
@@ -367,9 +564,9 @@
   <tr data-corte>
     <td class="col-num"></td>
     <td class="col-desc"><input type="text" class="f-descripcion" placeholder="lado 1, tapa..."></td>
-    <td><input type="number" class="f-cantidad" min="1" value="1"></td>
-    <td><input type="number" class="f-alto" min="0" step="1" value="2750"></td>
-    <td><input type="number" class="f-ancho" min="0" step="1" value="1830"></td>
+    <td><input type="number" class="f-cantidad" min="1" placeholder="1"></td>
+    <td><input type="number" class="f-alto" min="0" step="1" placeholder="2750"></td>
+    <td><input type="number" class="f-ancho" min="0" step="1" placeholder="1830"></td>
     <td class="col-canto"><input type="checkbox" class="f-canto1" title="Canto lado largo 1 (L1)"></td>
     <td class="col-canto"><input type="checkbox" class="f-canto2" title="Canto lado largo 2 (L2)"></td>
     <td class="col-canto"><input type="checkbox" class="f-canto3" title="Canto lado ancho 1 (A1)"></td>
@@ -390,8 +587,72 @@
   const submitBtn = document.getElementById('submitBtn');
   const whatsappBtn = document.getElementById('whatsappBtn');
   const pasoIndicador = document.getElementById('pasoIndicador');
+  const verPedidoLink = document.getElementById('verPedidoLink');
   const fechaInput = document.getElementById('fecha');
   const hpField = document.getElementById('hpField');
+  const conMaterialCheck = document.getElementById('conMaterial');
+  const materialField = document.getElementById('materialField');
+  const materialSelect = document.getElementById('material');
+  const estimadoBox = document.getElementById('estimadoBox');
+  const estimadoTotal = document.getElementById('estimadoTotal');
+  const estimadoTablaBody = document.getElementById('estimadoTablaBody');
+  const estimadoNota = document.getElementById('estimadoNota');
+  const precios = {corte: null, canto: null};
+
+  const formatoARS = new Intl.NumberFormat('es-AR', {style: 'currency', currency: 'ARS', maximumFractionDigits: 0});
+
+  const wizardStepEls = Array.from(document.querySelectorAll('.wizard-step'));
+  const pasoContenidoEls = Array.from(document.querySelectorAll('[data-paso-contenido]'));
+  const btnAnterior = document.getElementById('btnAnterior');
+  const btnSiguiente = document.getElementById('btnSiguiente');
+  const TOTAL_PASOS = pasoContenidoEls.length;
+  let pasoActual = 1;
+
+  function validarPaso1(){
+    const contacto = document.getElementById('contacto').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+    if (!contacto || !telefono){
+      mostrarMensaje('err', 'Completá al menos nombre y teléfono.');
+      return false;
+    }
+    return true;
+  }
+
+  function validarPaso2(){
+    if (leerTodosLosCortes().length === 0){
+      mostrarMensaje('err', 'Agregá al menos un corte.');
+      return false;
+    }
+    return true;
+  }
+
+  function actualizarWizard(){
+    pasoContenidoEls.forEach(el => {
+      el.hidden = Number(el.dataset.pasoContenido) !== pasoActual;
+    });
+    wizardStepEls.forEach(el => {
+      const n = Number(el.dataset.step);
+      el.classList.toggle('activo', n === pasoActual);
+      el.classList.toggle('completado', n < pasoActual);
+    });
+    btnAnterior.hidden = pasoActual === 1;
+    btnSiguiente.hidden = pasoActual === TOTAL_PASOS;
+    submitBtn.disabled = pasoActual !== TOTAL_PASOS;
+    if (pasoActual === TOTAL_PASOS) actualizarEstimado();
+  }
+
+  btnSiguiente.addEventListener('click', () => {
+    if (pasoActual === 1 && !validarPaso1()) return;
+    if (pasoActual === 2 && !validarPaso2()) return;
+    mostrarMensaje('', '');
+    pasoActual = Math.min(pasoActual + 1, TOTAL_PASOS);
+    actualizarWizard();
+  });
+  btnAnterior.addEventListener('click', () => {
+    pasoActual = Math.max(pasoActual - 1, 1);
+    actualizarWizard();
+  });
+  actualizarWizard();
 
   function fechaHoyLocal(){
     const hoy = new Date();
@@ -399,6 +660,40 @@
     return new Date(hoy - offset).toISOString().slice(0, 10);
   }
   fechaInput.value = fechaHoyLocal();
+
+  function actualizarVisibilidadMaterial(){
+    materialField.style.display = conMaterialCheck.checked ? '' : 'none';
+  }
+  conMaterialCheck.addEventListener('change', actualizarVisibilidadMaterial);
+  actualizarVisibilidadMaterial();
+
+  fetch('/materiales')
+    .then(res => res.ok ? res.json() : [])
+    .then(materiales => {
+      if (!Array.isArray(materiales) || materiales.length === 0) return;
+      materialSelect.innerHTML = '';
+      materiales.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.nombre;
+        opt.textContent = m.nombre;
+        if (m.id != null) opt.dataset.id = m.id;
+        if (m.precio != null) opt.dataset.precio = m.precio;
+        if (m.ancho != null) opt.dataset.ancho = m.ancho;
+        if (m.largo != null) opt.dataset.largo = m.largo;
+        materialSelect.appendChild(opt);
+      });
+      actualizarEstimado();
+    })
+    .catch(() => {});
+
+  fetch('/precios')
+    .then(res => res.ok ? res.json() : {})
+    .then(datos => {
+      precios.corte = datos.corte ?? null;
+      precios.canto = datos.canto ?? null;
+      actualizarEstimado();
+    })
+    .catch(() => {});
 
   function renumerar(){
     body.querySelectorAll('[data-corte]').forEach((el, i) => {
@@ -425,6 +720,8 @@
       if (body.querySelectorAll('[data-corte]').length <= 1) return;
       el.remove();
       renumerar();
+      actualizarLinkWhatsapp();
+      actualizarEstimado();
     });
 
     body.appendChild(node);
@@ -433,11 +730,14 @@
   }
 
   function leerCorte(el){
+    const cantidad = el.querySelector('.f-cantidad').value;
+    const alto = el.querySelector('.f-alto').value;
+    const ancho = el.querySelector('.f-ancho').value;
     return {
       descripcion: el.querySelector('.f-descripcion').value,
-      cantidad: el.querySelector('.f-cantidad').value,
-      alto: el.querySelector('.f-alto').value,
-      ancho: el.querySelector('.f-ancho').value,
+      cantidad: cantidad === '' ? 1 : cantidad,
+      alto: alto === '' ? 2750 : alto,
+      ancho: ancho === '' ? 1830 : ancho,
       canto_1: el.querySelector('.f-canto1').checked,
       canto_2: el.querySelector('.f-canto2').checked,
       canto_3: el.querySelector('.f-canto3').checked,
@@ -457,6 +757,75 @@
     return Array.from(body.querySelectorAll('[data-corte]'))
       .map(leerCorte)
       .filter(c => !filaSinTocar(c));
+  }
+
+  function filaEstimado(concepto, cantidad, precioUnit, subtotal){
+    const tr = document.createElement('tr');
+    [concepto, cantidad, precioUnit, subtotal].forEach(texto => {
+      const td = document.createElement('td');
+      td.textContent = texto;
+      tr.appendChild(td);
+    });
+    return tr;
+  }
+
+  function actualizarEstimado(){
+    const cortes = leerTodosLosCortes();
+    if (cortes.length === 0 || (precios.corte == null && precios.canto == null)){
+      estimadoBox.hidden = true;
+      return;
+    }
+
+    const totalMetrosCorte = cortes.reduce((acc, c) => {
+      const perimetroMm = 2 * ((Number(c.alto) || 0) + (Number(c.ancho) || 0));
+      return acc + perimetroMm * (Number(c.cantidad) || 0);
+    }, 0) / 1000;
+    const totalMetrosCanto = cortes.reduce((acc, c) => {
+      const alto = Number(c.alto) || 0;
+      const ancho = Number(c.ancho) || 0;
+      const mmCanto = (c.canto_1 ? alto : 0) + (c.canto_2 ? alto : 0) + (c.canto_3 ? ancho : 0) + (c.canto_4 ? ancho : 0);
+      return acc + mmCanto * (Number(c.cantidad) || 0);
+    }, 0) / 1000;
+
+    const filas = [];
+    const notas = [];
+    let total = 0;
+
+    if (precios.corte != null){
+      const subtotalCorte = precios.corte * totalMetrosCorte;
+      total += subtotalCorte;
+      filas.push(filaEstimado('Corte recto', `${totalMetrosCorte.toFixed(2)} m`, `${formatoARS.format(precios.corte)}/m`, formatoARS.format(subtotalCorte)));
+    }
+    if (precios.canto != null && totalMetrosCanto > 0){
+      const subtotalCanto = precios.canto * totalMetrosCanto;
+      total += subtotalCanto;
+      filas.push(filaEstimado('Pegado de canto', `${totalMetrosCanto.toFixed(2)} m`, `${formatoARS.format(precios.canto)}/m`, formatoARS.format(subtotalCanto)));
+    }
+    if (conMaterialCheck.checked){
+      const opt = materialSelect.options[materialSelect.selectedIndex];
+      const precioMaterial = opt && opt.dataset.precio ? Number(opt.dataset.precio) : null;
+      const anchoPlaca = opt && opt.dataset.ancho ? Number(opt.dataset.ancho) : null;
+      const largoPlaca = opt && opt.dataset.largo ? Number(opt.dataset.largo) : null;
+      if (precioMaterial != null && anchoPlaca && largoPlaca){
+        const areaPiezas = cortes.reduce((acc, c) => acc + (Number(c.alto) || 0) * (Number(c.ancho) || 0) * (Number(c.cantidad) || 0), 0);
+        const areaPlaca = anchoPlaca * largoPlaca;
+        const cantidadPlacas = Math.ceil(areaPiezas / areaPlaca);
+        const subtotalMaterial = cantidadPlacas * precioMaterial;
+        total += subtotalMaterial;
+        filas.push(filaEstimado(`Placa ${opt.value}`, `${cantidadPlacas} plancha(s)`, formatoARS.format(precioMaterial), formatoARS.format(subtotalMaterial)));
+      } else if (precioMaterial != null){
+        notas.push(`No se incluyó la placa "${opt.value}" en el total — falta cargar su medida en el panel.`);
+      }
+    } else {
+      notas.push('El material lo trae el cliente.');
+    }
+
+    estimadoTablaBody.innerHTML = '';
+    filas.forEach(fila => estimadoTablaBody.appendChild(fila));
+    estimadoTotal.textContent = formatoARS.format(total);
+    notas.push('Precio estimado — no incluye descuentos.');
+    estimadoNota.textContent = notas.join(' ');
+    estimadoBox.hidden = false;
   }
 
   addBtn.addEventListener('click', () => agregarCorte());
@@ -507,15 +876,16 @@
 
     renumerar();
     actualizarLinkWhatsapp();
+    actualizarEstimado();
   });
 
-  function construirResumenTexto(datos){
+  function construirResumenTexto(datos, pedidoUrl){
     let txt = `Solicitud de corte — Clever CNC\n`;
     txt += `Nombre: ${datos.contacto}\n`;
     txt += `Teléfono: ${datos.telefono}\n`;
     if (datos.email) txt += `Email: ${datos.email}\n`;
     if (datos.fecha) txt += `Fecha necesaria: ${datos.fecha}\n`;
-    txt += `Placa: ${datos.material}\n`;
+    txt += datos.con_material ? `Placa: ${datos.material}\n` : `Placa: la trae el cliente\n`;
     txt += `\nCortes:\n`;
     const ETIQUETAS_CANTO = {canto_1:'L1', canto_2:'L2', canto_3:'A1', canto_4:'A2'};
     datos.cortes.forEach((c, i) => {
@@ -524,16 +894,21 @@
       txt += `${i+1}) ${c.descripcion || 'sin descripción'} — cant: ${c.cantidad}, `
         + `${c.alto || '?'}x${c.ancho || '?'} mm (largo x ancho), cantos: ${cantos}\n`;
     });
+    if (pedidoUrl) txt += `\nVer mi pedido: ${pedidoUrl}\n`;
     return txt;
   }
 
   function recolectarDatos(){
+    const conMaterial = conMaterialCheck.checked;
+    const opcionMaterial = materialSelect.options[materialSelect.selectedIndex];
     const datos = {
       contacto: document.getElementById('contacto').value.trim(),
       telefono: document.getElementById('telefono').value.trim(),
       email: document.getElementById('email').value.trim(),
       fecha: document.getElementById('fecha').value,
-      material: document.getElementById('material').value,
+      con_material: conMaterial,
+      material: conMaterial ? materialSelect.value : null,
+      material_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.id) ? Number(opcionMaterial.dataset.id) : null,
       cortes: leerTodosLosCortes(),
     };
     datos[HONEYPOT_FIELD] = hpField.value;
@@ -545,8 +920,9 @@
     const texto = encodeURIComponent(construirResumenTexto(datos));
     whatsappBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
   }
-  form.addEventListener('input', actualizarLinkWhatsapp);
+  form.addEventListener('input', () => { actualizarLinkWhatsapp(); actualizarEstimado(); });
   actualizarLinkWhatsapp();
+  actualizarEstimado();
 
   function mostrarMensaje(tipo, texto){
     msgBox.className = 'msg ' + tipo;
@@ -580,15 +956,26 @@
         throw new Error(err.detail ? JSON.stringify(err.detail) : ('status ' + res.status));
       }
 
+      const resultado = await res.json().catch(() => ({}));
+      if (resultado.id){
+        const pedidoUrl = `${window.location.origin}/pedido/${resultado.id}`;
+        const texto = encodeURIComponent(construirResumenTexto(datos, pedidoUrl));
+        whatsappBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
+        verPedidoLink.href = pedidoUrl;
+        verPedidoLink.hidden = false;
+      }
+
       mostrarMensaje('ok', '¡Listo! Recibimos tu solicitud.');
-      pasoIndicador.textContent = 'Paso 2 de 2 — tocá "Enviar por WhatsApp" para confirmar tu pedido.';
+      pasoIndicador.textContent = 'Tocá "Coordinar pago y entrega por WhatsApp" para terminar.';
       pasoIndicador.classList.add('visible');
+      whatsappBtn.hidden = false;
       whatsappBtn.classList.add('destacado');
-      submitBtn.textContent = 'Solicitud enviada ✓';
+      submitBtn.textContent = 'Solicitud confirmada ✓';
+      btnAnterior.hidden = true;
     }catch(err){
-      mostrarMensaje('err', 'No pudimos enviar la solicitud automáticamente. Probá con el botón de WhatsApp.');
+      mostrarMensaje('err', 'No pudimos confirmar la solicitud. Probá de nuevo.');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Enviar solicitud';
+      submitBtn.textContent = 'Confirmar solicitud';
     }
   });
 </script>

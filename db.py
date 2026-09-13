@@ -1,31 +1,30 @@
-import os
-
-import libsql_client
+import asyncpg
 
 import config
 
-_client = None
+_pool: asyncpg.Pool | None = None
 
 SCHEMA_SOLICITUDES = """
 CREATE TABLE IF NOT EXISTS solicitudes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     contacto TEXT NOT NULL,
     telefono TEXT NOT NULL,
     email TEXT,
     fecha TEXT,
+    con_material INTEGER NOT NULL DEFAULT 1,
     material TEXT,
     estado TEXT NOT NULL DEFAULT 'esperando_confirmacion_whatsapp',
     etapa_produccion TEXT,
     motivo_cancelacion TEXT,
     odoo_pedido_id INTEGER,
     odoo_pedido_nombre TEXT,
-    creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 """
 
 SCHEMA_LINEAS = """
 CREATE TABLE IF NOT EXISTS lineas_corte (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     solicitud_id INTEGER NOT NULL REFERENCES solicitudes(id),
     descripcion TEXT,
     cantidad INTEGER DEFAULT 1,
@@ -39,141 +38,173 @@ CREATE TABLE IF NOT EXISTS lineas_corte (
 );
 """
 
+SCHEMA_MEDIDAS_MATERIAL = """
+CREATE TABLE IF NOT EXISTS medidas_material (
+    odoo_id INTEGER PRIMARY KEY,
+    nombre TEXT,
+    ancho INTEGER,
+    largo INTEGER,
+    habilitado INTEGER NOT NULL DEFAULT 1
+);
+"""
 
-async def get_client():
-    global _client
-    if _client is None:
-        if config.TURSO_URL:
-            url = config.TURSO_URL
-        else:
-            os.makedirs(os.path.dirname(config.LOCAL_DB_PATH) or ".", exist_ok=True)
-            url = f"file:{config.LOCAL_DB_PATH}"
-        _client = libsql_client.create_client(url=url, auth_token=config.TURSO_TOKEN)
-    return _client
+
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(dsn=config.DATABASE_URL)
+    return _pool
 
 
 async def init_db():
-    client = await get_client()
-    await client.execute(SCHEMA_SOLICITUDES)
-    await client.execute(SCHEMA_LINEAS)
-    for columna in ("odoo_pedido_id INTEGER", "odoo_pedido_nombre TEXT"):
-        try:
-            await client.execute(f"ALTER TABLE solicitudes ADD COLUMN {columna}")
-        except Exception:
-            pass  # la columna ya existe
+    pool = await get_pool()
+    async with pool.acquire() as con:
+        await con.execute(SCHEMA_SOLICITUDES)
+        await con.execute(SCHEMA_LINEAS)
+        await con.execute(SCHEMA_MEDIDAS_MATERIAL)
+        for columna in (
+            "odoo_pedido_id INTEGER",
+            "odoo_pedido_nombre TEXT",
+            "con_material INTEGER NOT NULL DEFAULT 1",
+            "material_id INTEGER",
+        ):
+            await con.execute(f"ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS {columna}")
+        await con.execute(
+            "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS habilitado INTEGER NOT NULL DEFAULT 1"
+        )
 
 
 async def close_db():
-    global _client
-    if _client is not None:
-        await _client.close()
-        _client = None
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
 
 
-def _rows_a_dicts(rs):
-    return [dict(zip(rs.columns, fila)) for fila in rs.rows]
+def _rows_a_dicts(rows):
+    return [dict(r) for r in rows]
 
 
 async def crear_solicitud(datos) -> int:
-    client = await get_client()
-    rs = await client.execute(
-        """INSERT INTO solicitudes (contacto, telefono, email, fecha, material, estado)
-           VALUES (?, ?, ?, ?, ?, 'esperando_confirmacion_whatsapp')
-           RETURNING id""",
-        [datos.contacto, datos.telefono, datos.email, datos.fecha, datos.material],
-    )
-    solicitud_id = rs.rows[0][0]
-    for c in datos.cortes:
-        await client.execute(
-            """INSERT INTO lineas_corte
-               (solicitud_id, descripcion, cantidad, alto, ancho, canto_1, canto_2, canto_3, canto_4, rotar)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            [
+    pool = await get_pool()
+    async with pool.acquire() as con, con.transaction():
+        solicitud_id = await con.fetchval(
+            """INSERT INTO solicitudes (contacto, telefono, email, fecha, con_material, material, material_id, estado)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'esperando_confirmacion_whatsapp')
+               RETURNING id""",
+            datos.contacto, datos.telefono, datos.email, datos.fecha,
+            int(datos.con_material), datos.material, datos.material_id,
+        )
+        for c in datos.cortes:
+            await con.execute(
+                """INSERT INTO lineas_corte
+                   (solicitud_id, descripcion, cantidad, alto, ancho, canto_1, canto_2, canto_3, canto_4, rotar)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)""",
                 solicitud_id, c.descripcion, c.cantidad, c.alto, c.ancho,
                 int(c.canto_1), int(c.canto_2), int(c.canto_3), int(c.canto_4), int(c.rotar),
-            ],
-        )
+            )
     return solicitud_id
 
 
 async def obtener_solicitud(solicitud_id: int):
-    client = await get_client()
-    rs = await client.execute("SELECT * FROM solicitudes WHERE id = ?", [solicitud_id])
-    filas = _rows_a_dicts(rs)
-    if not filas:
+    pool = await get_pool()
+    fila = await pool.fetchrow("SELECT * FROM solicitudes WHERE id = $1", solicitud_id)
+    if not fila:
         return None
-    solicitud = filas[0]
-    rs_lineas = await client.execute(
-        "SELECT * FROM lineas_corte WHERE solicitud_id = ? ORDER BY id", [solicitud_id]
+    solicitud = dict(fila)
+    lineas = await pool.fetch(
+        "SELECT * FROM lineas_corte WHERE solicitud_id = $1 ORDER BY id", solicitud_id
     )
-    solicitud["cortes"] = _rows_a_dicts(rs_lineas)
+    solicitud["cortes"] = _rows_a_dicts(lineas)
     return solicitud
 
 
 async def listar_solicitudes():
-    client = await get_client()
-    rs = await client.execute("SELECT * FROM solicitudes ORDER BY creado_en DESC")
-    return _rows_a_dicts(rs)
+    pool = await get_pool()
+    filas = await pool.fetch("SELECT * FROM solicitudes ORDER BY creado_en DESC")
+    return _rows_a_dicts(filas)
 
 
 async def actualizar_solicitud(solicitud_id: int, datos):
-    client = await get_client()
-    campos, valores = [], []
-    for campo in ("contacto", "telefono", "email", "fecha", "material"):
-        valor = getattr(datos, campo, None)
-        if valor is not None:
-            campos.append(f"{campo} = ?")
-            valores.append(valor)
-    if campos:
-        valores.append(solicitud_id)
-        await client.execute(f"UPDATE solicitudes SET {', '.join(campos)} WHERE id = ?", valores)
+    pool = await get_pool()
+    async with pool.acquire() as con, con.transaction():
+        campos, valores = [], []
+        for campo in ("contacto", "telefono", "email", "fecha", "con_material", "material", "material_id"):
+            valor = getattr(datos, campo, None)
+            if valor is not None:
+                valores.append(int(valor) if campo == "con_material" else valor)
+                campos.append(f"{campo} = ${len(valores)}")
+        if campos:
+            valores.append(solicitud_id)
+            await con.execute(
+                f"UPDATE solicitudes SET {', '.join(campos)} WHERE id = ${len(valores)}", *valores
+            )
 
-    if datos.cortes is not None:
-        await client.execute("DELETE FROM lineas_corte WHERE solicitud_id = ?", [solicitud_id])
-        for c in datos.cortes:
-            await client.execute(
-                """INSERT INTO lineas_corte
-                   (solicitud_id, descripcion, cantidad, alto, ancho, canto_1, canto_2, canto_3, canto_4, rotar)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [
+        if datos.cortes is not None:
+            await con.execute("DELETE FROM lineas_corte WHERE solicitud_id = $1", solicitud_id)
+            for c in datos.cortes:
+                await con.execute(
+                    """INSERT INTO lineas_corte
+                       (solicitud_id, descripcion, cantidad, alto, ancho, canto_1, canto_2, canto_3, canto_4, rotar)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)""",
                     solicitud_id, c.descripcion, c.cantidad, c.alto, c.ancho,
                     int(c.canto_1), int(c.canto_2), int(c.canto_3), int(c.canto_4), int(c.rotar),
-                ],
-            )
+                )
 
 
 async def confirmar_solicitud(solicitud_id: int):
-    client = await get_client()
-    await client.execute(
-        "UPDATE solicitudes SET estado = 'confirmada', etapa_produccion = 'por_hacer' WHERE id = ?",
-        [solicitud_id],
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE solicitudes SET estado = 'confirmada', etapa_produccion = 'por_hacer' WHERE id = $1",
+        solicitud_id,
     )
 
 
 async def cancelar_solicitud(solicitud_id: int, motivo: str | None):
-    client = await get_client()
-    await client.execute(
-        "UPDATE solicitudes SET estado = 'cancelada', motivo_cancelacion = ? WHERE id = ?",
-        [motivo, solicitud_id],
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE solicitudes SET estado = 'cancelada', motivo_cancelacion = $1 WHERE id = $2",
+        motivo, solicitud_id,
     )
 
 
 async def mover_etapa(solicitud_id: int, etapa: str):
-    client = await get_client()
-    await client.execute(
-        "UPDATE solicitudes SET etapa_produccion = ? WHERE id = ?", [etapa, solicitud_id]
-    )
+    pool = await get_pool()
+    await pool.execute("UPDATE solicitudes SET etapa_produccion = $1 WHERE id = $2", etapa, solicitud_id)
 
 
 async def eliminar_solicitud(solicitud_id: int):
-    client = await get_client()
-    await client.execute("DELETE FROM lineas_corte WHERE solicitud_id = ?", [solicitud_id])
-    await client.execute("DELETE FROM solicitudes WHERE id = ?", [solicitud_id])
+    pool = await get_pool()
+    async with pool.acquire() as con, con.transaction():
+        await con.execute("DELETE FROM lineas_corte WHERE solicitud_id = $1", solicitud_id)
+        await con.execute("DELETE FROM solicitudes WHERE id = $1", solicitud_id)
 
 
 async def guardar_odoo_pedido(solicitud_id: int, odoo_pedido_id: int, odoo_pedido_nombre: str):
-    client = await get_client()
-    await client.execute(
-        "UPDATE solicitudes SET odoo_pedido_id = ?, odoo_pedido_nombre = ? WHERE id = ?",
-        [odoo_pedido_id, odoo_pedido_nombre, solicitud_id],
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE solicitudes SET odoo_pedido_id = $1, odoo_pedido_nombre = $2 WHERE id = $3",
+        odoo_pedido_id, odoo_pedido_nombre, solicitud_id,
+    )
+
+
+async def listar_medidas_materiales():
+    pool = await get_pool()
+    filas = await pool.fetch("SELECT * FROM medidas_material")
+    return {f["odoo_id"]: dict(f) for f in filas}
+
+
+async def obtener_medida_material(odoo_id: int):
+    pool = await get_pool()
+    fila = await pool.fetchrow("SELECT * FROM medidas_material WHERE odoo_id = $1", odoo_id)
+    return dict(fila) if fila else None
+
+
+async def guardar_medida_material(odoo_id: int, nombre: str, ancho: int, largo: int, habilitado: bool):
+    pool = await get_pool()
+    await pool.execute(
+        """INSERT INTO medidas_material (odoo_id, nombre, ancho, largo, habilitado)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (odoo_id) DO UPDATE SET nombre = $2, ancho = $3, largo = $4, habilitado = $5""",
+        odoo_id, nombre, ancho, largo, int(habilitado),
     )

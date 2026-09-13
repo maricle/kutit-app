@@ -7,20 +7,21 @@ and track each order through production from an internal dashboard.
 ## Stack
 
 - **FastAPI** (Python) — HTTP API + server-rendered HTML via Jinja2
-- **libsql-client** — talks to either a local SQLite file or a remote **Turso**
-  database, depending on config
+- **asyncpg** — talks to a **PostgreSQL** database (`DATABASE_URL`)
 - **Uvicorn** — ASGI server (`Procfile` runs it for Railway)
 
 ## Data model
 
-Two tables, created automatically on startup (`db.init_db`, called from the FastAPI
+Created automatically on startup (`db.init_db`, called from the FastAPI
 `lifespan` hook):
 
 **`solicitudes`** (orders)
 | column | meaning |
 |---|---|
 | `contacto`, `telefono`, `email` | customer contact info |
-| `fecha`, `material` | requested date, panel material (default `MDF`) |
+| `fecha`, `material` | requested date, panel material name |
+| `con_material` | whether Clever CNC provides the panel (false = customer brings their own) |
+| `material_id` | Odoo `product.template` id of the chosen panel, if `con_material` |
 | `estado` | `esperando_confirmacion_whatsapp` → `confirmada` → (optionally) `cancelada` |
 | `etapa_produccion` | production stage once confirmed: `por_hacer` → `en_proceso` → `terminado` |
 | `motivo_cancelacion` | reason, if cancelled |
@@ -33,14 +34,32 @@ Two tables, created automatically on startup (`db.init_db`, called from the Fast
 | `canto_1..4` | which of the 4 edges get edge-banding (canto) |
 | `rotar` | whether the piece may be rotated to fit the cutting layout |
 
+**`medidas_material`** (panel dimensions, keyed by Odoo `product.template` id)
+
+Odoo has price and name for each panel product but not its physical size, so
+staff enter that here (`/dashboard/precios`) — it's what lets the app compute
+how many full panels an order needs.
+| column | meaning |
+|---|---|
+| `odoo_id` | Odoo `product.template` id (primary key) |
+| `nombre` | cached product name |
+| `ancho`, `largo` | full-panel dimensions in mm |
+| `habilitado` | whether this panel is offered on the public form's material dropdown |
+
 ## Request lifecycle
 
-1. Customer fills the public form (`GET /`) and submits it (`POST /solicitudes`).
-   Empty/placeholder rows are dropped server-side (`fila_vacia`); a hidden
-   honeypot field silently no-ops bot submissions instead of erroring.
-2. Order is created with `estado = esperando_confirmacion_whatsapp` — the
-   customer is expected to confirm via WhatsApp (number from `WHATSAPP_NUMBER`)
-   before staff act on it.
+1. Customer fills the public form (`GET /`) — a 3-step wizard (data & material →
+   cut list → budget estimate) — and submits it (`POST /solicitudes`). The
+   estimate is computed client-side from `/materiales` and `/precios`; it's
+   informational only, the real quotation is the Odoo `sale.order`. Empty/
+   placeholder rows are dropped server-side (`fila_vacia`); a hidden honeypot
+   field silently no-ops bot submissions instead of erroring. Staff can also
+   create an order on a customer's behalf from `/dashboard/solicitudes/nueva`,
+   optionally extracting the cut list from a photo (see **Photo extraction**).
+2. Order is created with `estado = esperando_confirmacion_whatsapp`. The
+   customer gets a link to `/pedido/{id}` (a read-only status page) and is
+   expected to confirm via WhatsApp (number from `WHATSAPP_NUMBER`) before
+   staff act on it.
 3. Staff log into `/dashboard`, review the order, and call **confirm**
    (`POST /solicitudes/{id}/confirmar`), which sets `estado = confirmada` and
    `etapa_produccion = por_hacer`.
@@ -51,6 +70,16 @@ Two tables, created automatically on startup (`db.init_db`, called from the Fast
    or deleted outright (`DELETE /solicitudes/{id}`).
 6. Once `confirmada`, staff can push the order to Odoo as a quotation
    (`POST /solicitudes/{id}/odoo`) — see **Odoo sync** below.
+
+## Photo extraction
+
+From `/dashboard/solicitudes/nueva`, staff can upload a photo of a customer's
+handwritten or WhatsApp-sent cut list (`POST /dashboard/extraer-piezas`).
+`vision_extract.py` sends the image to Claude (`ANTHROPIC_API_KEY`) with a
+prompt describing the expected fields and gets back a structured list of
+pieces (description, quantity, height/width in mm, edge-banding), which
+pre-fills the cut list table for staff to review before creating the order.
+The image itself is never stored.
 
 ## Auth
 
@@ -66,9 +95,17 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/` | — | Public order form |
-| POST | `/solicitudes` | — | Create a new order |
+| POST | `/solicitudes` | — | Create a new order (attempts an Odoo quotation immediately, best-effort) |
+| GET | `/materiales` | — | List enabled panel materials with price + dimensions, for the public form |
+| GET | `/precios` | — | Current corte/canto unit prices, for the public form's live estimate |
+| GET | `/pedido/{id}` | — | Read-only order status page for the customer |
 | GET | `/health` | — | Health check |
 | GET | `/dashboard` | cookie | Kanban-style board grouped by state/stage |
+| GET | `/dashboard/precios` | cookie | Manage panel prices (from Odoo) and dimensions/visibility (local) |
+| POST | `/dashboard/precios/medidas` | cookie | Save a panel's dimensions/visibility |
+| POST | `/dashboard/extraer-piezas` | cookie | Extract a cut list from an uploaded photo (see **Photo extraction**) |
+| GET | `/dashboard/solicitudes/nueva` | cookie | Form for staff to create an order on a customer's behalf |
+| POST | `/dashboard/solicitudes` | cookie | Create an order as staff (same as `POST /solicitudes`, cookie-authed) |
 | POST | `/dashboard/login` | API key | Exchange API key for session cookie |
 | POST | `/dashboard/logout` | — | Clear session cookie |
 | GET | `/dashboard/solicitudes/{id}` | cookie | Order detail/edit page |
@@ -79,46 +116,60 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | POST | `/solicitudes/{id}/etapa` | cookie | Move production stage (blocked once `terminado`) |
 | POST | `/solicitudes/{id}/cancelar` | cookie | Cancel order with optional reason |
 | DELETE | `/solicitudes/{id}` | cookie | Delete order and its cut lines |
-| POST | `/solicitudes/{id}/odoo` | cookie | Push a confirmed order to Odoo as a quotation |
+| POST | `/solicitudes/{id}/odoo` | cookie | (Re-)send the order to Odoo as a quotation (blocked once `cancelada`) |
 
 ## Odoo sync
 
-From the order detail page, a **confirmed** order can be sent to Odoo
-(`odoo_client.crear_presupuesto`) as a `sale.order` (quotation):
+Every order gets a best-effort push to Odoo as a `sale.order` (quotation)
+right when it's created (`_crear_solicitud`) — failures are swallowed so a
+down/misconfigured Odoo never blocks a customer's request. Staff can also
+(re-)send it later from the order detail page (`POST /solicitudes/{id}/odoo`,
+blocked only once `cancelada`). Both paths call `odoo_client.crear_presupuesto`:
 
 - Authenticates over XML-RPC (`ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`,
   `ODOO_API_KEY`) — runs in a worker thread since `xmlrpc.client` is blocking.
-- Finds or creates a `res.partner` by matching `telefono` (falls back to
-  creating one from `contacto`/`telefono`/`email`).
-- Adds one order line for the CNC cutting service, looked up in Odoo by
-  `default_code` (`ODOO_PRODUCT_CORTE_CODE`, default `cnc`) rather than a
-  hardcoded numeric ID — product IDs aren't stable across Odoo instances.
-  Quantity is the total piece count across all cut lines; the line
-  description lists every cut (size, quantity, edge-banding).
-- If any cut has edge-banding (`canto_1..4`), adds a second line for
-  `ODOO_PRODUCT_CANTO_NOMBRE` (looked up by exact product name, since it has
-  no `default_code`), quantity = total number of banded edges across the
-  order.
+- Uses a single fixed partner (`ODOO_PARTNER_CONSUMIDOR_FINAL_ID`, e.g.
+  "Consumidor Final") for every order — the customer's name/phone go into the
+  quotation's `x_studio_titulo` instead of a dedicated `res.partner`.
+- Adds one order line for the CNC cutting service (`ODOO_PRODUCT_CORTE_ID`).
+  Quantity is the total cut perimeter in meters (`calculos.metros_corte`); the
+  line description lists every cut (size, quantity, edge-banding).
+- If any cut has edge-banding, adds a second line for the edge-banding
+  service (`ODOO_PRODUCT_CANTO_ID`), quantity = total banded edge length in
+  meters (`calculos.metros_canto`).
+- If the order has `con_material` with a `material_id` whose dimensions are
+  configured (`medidas_material`), adds a third line for that panel product,
+  quantity = number of full panels needed (`calculos.cantidad_placas`, ceil of
+  total piece area over panel area).
 - The resulting Odoo order id/name is saved back on the order
   (`odoo_pedido_id`, `odoo_pedido_nombre`) so re-sending is visible as
   "Reenviar a Odoo" rather than silently duplicating the quotation — note
   this only prevents *accidental* re-clicks from being confusing; clicking it
   again still creates a second `sale.order` in Odoo.
 
+Odoo product ids passed around the app (`ODOO_PRODUCT_CORTE_ID`, `_ID` config
+in general) are `product.template` ids; `odoo_client._resolver_variante`
+resolves each to its `product.product` variant id (what `sale.order` lines
+actually need) and its price, falling back to treating the id as already a
+`product.product` id if no matching template exists.
+
 ## Configuration (`config.py` / `.env`)
 
 | Variable | Purpose |
 |---|---|
-| `TURSO_URL`, `TURSO_TOKEN` | Remote Turso DB; if unset, falls back to a local SQLite file |
-| `LOCAL_DB_PATH` | Path for the local SQLite fallback (default `data/kutit.db`) |
+| `DATABASE_URL` | PostgreSQL connection string (`postgresql://user:pass@host:port/db`) |
 | `DASHBOARD_API_KEY` | Shared secret to log into `/dashboard` |
 | `SESSION_SECRET` | HMAC key for session cookies (falls back to `DASHBOARD_API_KEY`, then a dev default — always set explicitly in production) |
 | `HONEYPOT_FIELD_NAME` | Hidden form field name used to silently drop bot submissions |
 | `ALLOWED_ORIGIN` | CORS allow-origin for the public form |
 | `WHATSAPP_NUMBER` | Number shown to customers for order confirmation |
-| `ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` | Odoo XML-RPC connection for the "send to Odoo" button |
-| `ODOO_PRODUCT_CORTE_CODE` | `default_code` of the CNC cutting product in Odoo (default `cnc`) |
-| `ODOO_PRODUCT_CANTO_NOMBRE` | Exact product name of the edge-banding service in Odoo |
+| `CLEVER_SITE_URL` | Clever CNC's site, linked from the "← Volver a Clever CNC" back link |
+| `ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` | Odoo XML-RPC connection |
+| `ODOO_PRODUCT_CORTE_ID` | `product.template` id of the CNC cutting service in Odoo |
+| `ODOO_PRODUCT_CANTO_ID` | `product.template` id of the edge-banding service in Odoo |
+| `ODOO_CATEGORIA_MATERIALES_ID` | eCommerce category id grouping panel/material products in Odoo |
+| `ODOO_PARTNER_CONSUMIDOR_FINAL_ID` | `res.partner` id used on every generated quotation |
+| `ANTHROPIC_API_KEY` | Claude API key used for photo-based cut list extraction |
 
 ## Running locally
 

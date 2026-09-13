@@ -21,7 +21,9 @@ class SolicitudCorteIn(BaseModel):
     telefono: str
     email: Optional[str] = None
     fecha: Optional[str] = None
-    material: str = "MDF"
+    con_material: bool = True
+    material: Optional[str] = "MDF"
+    material_id: Optional[int] = None
     cortes: list[FilaCorte] = Field(default_factory=list)
 
     @field_validator("contacto", "telefono")
@@ -37,7 +39,9 @@ class SolicitudCorteUpdate(BaseModel):
     telefono: Optional[str] = None
     email: Optional[str] = None
     fecha: Optional[str] = None
+    con_material: Optional[bool] = None
     material: Optional[str] = None
+    material_id: Optional[int] = None
     cortes: Optional[list[FilaCorte]] = None
 
 
@@ -53,3 +57,11 @@ class Etapa(str, Enum):
 
 class EtapaIn(BaseModel):
     etapa: Etapa
+
+
+class MedidaMaterialIn(BaseModel):
+    odoo_id: int
+    nombre: str
+    ancho: int
+    largo: int
+    habilitado: bool = True

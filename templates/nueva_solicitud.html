@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nueva solicitud — Kutit</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Kutit</h1>
+  <a href="/dashboard">← Volver al panel</a>
+</div>
+
+<div class="detalle-wrap">
+
+  <div class="card">
+    <h2>Nueva solicitud</h2>
+    <div class="grid2">
+      <div>
+        <label for="contacto">Nombre y apellido *</label>
+        <input type="text" id="contacto">
+      </div>
+      <div>
+        <label for="telefono">Teléfono / WhatsApp *</label>
+        <input type="text" id="telefono">
+      </div>
+      <div>
+        <label for="email">Email</label>
+        <input type="email" id="email">
+      </div>
+      <div>
+        <label for="fecha">Fecha</label>
+        <input type="date" id="fecha">
+      </div>
+      <div>
+        <label class="check-inline">
+          <input type="checkbox" id="conMaterial" checked>
+          Con material provisto
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Piezas</h2>
+    <div class="barra-acciones" style="margin-bottom:12px;">
+      <button type="button" id="btnCargarFoto" onclick="document.getElementById('fotoInput').click()">Cargar piezas desde foto</button>
+      <input type="file" id="fotoInput" accept="image/*" hidden onchange="cargarDesdeFoto(this)">
+      <button type="button" onclick="agregarLinea({})">+ Agregar fila</button>
+    </div>
+    <p class="hint">Subí la foto que te mandó el cliente (no se guarda, solo se usa para leer las medidas) o cargá las piezas a mano.</p>
+    <table class="lineas" id="tablaLineas">
+      <thead>
+        <tr>
+          <th>Descripción</th><th>Cant.</th><th>Largo</th><th>Ancho</th>
+          <th>L1</th><th>L2</th><th>A1</th><th>A2</th><th>Rotar</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Material</h2>
+    <table class="lineas">
+      <thead><tr><th>Placa</th></tr></thead>
+      <tbody>
+        <tr id="materialField">
+          <td style="text-align:left;">
+            <select id="material">
+              {% for m in materiales %}
+              <option value="{{ m.nombre }}" data-id="{{ m.id }}">{{ m.nombre }}</option>
+              {% endfor %}
+            </select>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="barra-acciones">
+    <button type="button" class="primario" onclick="crearSolicitud()">Crear solicitud</button>
+  </div>
+
+  <div class="msg" id="msgBox"></div>
+
+</div>
+
+<script>
+const conMaterialCheck = document.getElementById('conMaterial');
+const materialField = document.getElementById('materialField');
+function actualizarVisibilidadMaterial(){
+  materialField.style.display = conMaterialCheck.checked ? '' : 'none';
+}
+conMaterialCheck.addEventListener('change', actualizarVisibilidadMaterial);
+actualizarVisibilidadMaterial();
+
+function mostrarMensaje(tipo, texto){
+  const box = document.getElementById('msgBox');
+  box.className = 'msg ' + tipo;
+  box.textContent = texto;
+}
+
+function agregarLinea(p){
+  const tbody = document.querySelector('#tablaLineas tbody');
+  const tr = document.createElement('tr');
+  tr.setAttribute('data-linea', '');
+
+  const campoTexto = (clase, valor) => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = clase; inp.value = valor || '';
+    td.appendChild(inp);
+    return td;
+  };
+  const campoNumero = (clase, valor, ancho) => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.className = clase; inp.value = valor || 0; inp.style.width = ancho;
+    td.appendChild(inp);
+    return td;
+  };
+  const campoCheckbox = (clase, marcado) => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.className = clase; inp.checked = !!marcado;
+    td.appendChild(inp);
+    return td;
+  };
+
+  tr.appendChild(campoTexto('l-descripcion', p.descripcion));
+  tr.appendChild(campoNumero('l-cantidad', p.cantidad || 1, '60px'));
+  tr.appendChild(campoNumero('l-alto', p.alto || 0, '70px'));
+  tr.appendChild(campoNumero('l-ancho', p.ancho || 0, '70px'));
+  tr.appendChild(campoCheckbox('l-canto1', p.canto_1));
+  tr.appendChild(campoCheckbox('l-canto2', p.canto_2));
+  tr.appendChild(campoCheckbox('l-canto3', p.canto_3));
+  tr.appendChild(campoCheckbox('l-canto4', p.canto_4));
+  tr.appendChild(campoCheckbox('l-rotar', true));
+
+  tbody.appendChild(tr);
+}
+
+async function cargarDesdeFoto(input){
+  const archivo = input.files[0];
+  if (!archivo) return;
+
+  const btn = document.getElementById('btnCargarFoto');
+  btn.disabled = true;
+  btn.textContent = 'Analizando foto...';
+  mostrarMensaje('', '');
+
+  const formData = new FormData();
+  formData.append('imagen', archivo);
+
+  try{
+    const res = await fetch('/dashboard/extraer-piezas', {method: 'POST', body: formData});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok){
+      throw new Error(data.detail || 'No se pudo leer la imagen');
+    }
+    if (!data.piezas || data.piezas.length === 0){
+      mostrarMensaje('err', 'No se encontraron piezas reconocibles en la foto.');
+      return;
+    }
+    data.piezas.forEach(agregarLinea);
+    mostrarMensaje('ok', `Se agregaron ${data.piezas.length} pieza(s) desde la foto — revisalas antes de crear la solicitud.`);
+  }catch(err){
+    mostrarMensaje('err', err.message || 'No se pudo extraer la info de la imagen.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Cargar piezas desde foto';
+    input.value = '';
+  }
+}
+
+function recolectarLineas(){
+  return Array.from(document.querySelectorAll('#tablaLineas tbody tr[data-linea]')).map(fila => ({
+    descripcion: fila.querySelector('.l-descripcion').value,
+    cantidad: parseInt(fila.querySelector('.l-cantidad').value || '1', 10),
+    alto: parseInt(fila.querySelector('.l-alto').value || '0', 10),
+    ancho: parseInt(fila.querySelector('.l-ancho').value || '0', 10),
+    canto_1: fila.querySelector('.l-canto1').checked,
+    canto_2: fila.querySelector('.l-canto2').checked,
+    canto_3: fila.querySelector('.l-canto3').checked,
+    canto_4: fila.querySelector('.l-canto4').checked,
+    rotar: fila.querySelector('.l-rotar').checked,
+  }));
+}
+
+async function crearSolicitud(){
+  const contacto = document.getElementById('contacto').value.trim();
+  const telefono = document.getElementById('telefono').value.trim();
+  if (!contacto || !telefono){
+    mostrarMensaje('err', 'Completá al menos nombre y teléfono.');
+    return;
+  }
+  const cortes = recolectarLineas();
+  if (cortes.length === 0){
+    mostrarMensaje('err', 'Agregá al menos un corte.');
+    return;
+  }
+
+  const conMaterial = conMaterialCheck.checked;
+  const materialSelect = document.getElementById('material');
+  const opcionMaterial = materialSelect.options[materialSelect.selectedIndex];
+
+  const datos = {
+    contacto,
+    telefono,
+    email: document.getElementById('email').value.trim() || null,
+    fecha: document.getElementById('fecha').value || null,
+    con_material: conMaterial,
+    material: conMaterial ? materialSelect.value : null,
+    material_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.id && opcionMaterial.dataset.id !== 'None') ? Number(opcionMaterial.dataset.id) : null,
+    cortes,
+  };
+
+  const btn = document.querySelector('.barra-acciones .primario');
+  btn.disabled = true;
+  btn.textContent = 'Creando...';
+
+  try{
+    const res = await fetch('/dashboard/solicitudes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(datos),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok){
+      throw new Error(data.detail ? JSON.stringify(data.detail) : 'Ocurrió un error');
+    }
+    location.href = `/dashboard/solicitudes/${data.id}`;
+  }catch(err){
+    mostrarMensaje('err', err.message || 'No se pudo crear la solicitud.');
+    btn.disabled = false;
+    btn.textContent = 'Crear solicitud';
+  }
+}
+</script>
+
+</body>
+</html>
