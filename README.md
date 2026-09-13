@@ -21,7 +21,8 @@ Created automatically on startup (`db.init_db`, called from the FastAPI
 | `contacto`, `telefono`, `email` | customer contact info |
 | `fecha`, `material` | requested date, panel material name |
 | `con_material` | whether Clever CNC provides the panel (false = customer brings their own) |
-| `material_id` | Odoo `product.template` id of the chosen panel, if `con_material` |
+| `material_id` | Odoo `product.template` id of the chosen panel, if it's an Odoo-backed material |
+| `material_manual_id` | id into `materiales_manuales`, if it's a manually-added (non-Odoo) material — mutually exclusive with `material_id` |
 | `estado` | `esperando_confirmacion_whatsapp` → `confirmada` → (optionally) `cancelada` |
 | `etapa_produccion` | production stage once confirmed: `por_hacer` → `en_proceso` → `terminado` |
 | `motivo_cancelacion` | reason, if cancelled |
@@ -45,6 +46,20 @@ how many full panels an order needs.
 | `nombre` | cached product name |
 | `ancho`, `largo` | full-panel dimensions in mm |
 | `habilitado` | whether this panel is offered on the public form's material dropdown |
+| `precio_manual` | optional override shown instead of Odoo's `list_price` — for when Odoo has no price loaded, or staff don't want to show that price to customers |
+
+**`materiales_manuales`** (materials that don't exist as an Odoo product)
+
+For panels staff want on the public form/budget estimate without creating an
+Odoo product for them. Not tied to Odoo in any way — never pushed as a line
+item to the generated `sale.order` (see **Odoo sync**), only used for the
+public estimate, the material dropdown, and the panel-count calculation.
+| column | meaning |
+|---|---|
+| `id` | local id (referenced by `solicitudes.material_manual_id`) |
+| `nombre`, `precio` | shown wherever an Odoo material's name/price would be |
+| `ancho`, `largo` | full-panel dimensions in mm |
+| `habilitado` | whether it's offered on the public form's material dropdown |
 
 ## Request lifecycle
 
@@ -102,7 +117,8 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | GET | `/health` | — | Health check |
 | GET | `/dashboard` | cookie | Kanban-style board grouped by state/stage |
 | GET | `/dashboard/precios` | cookie | Manage panel prices (from Odoo) and dimensions/visibility (local) |
-| POST | `/dashboard/precios/medidas` | cookie | Save a panel's dimensions/visibility |
+| POST | `/dashboard/precios/medidas` | cookie | Save an Odoo panel's dimensions/visibility/manual price override |
+| POST | `/dashboard/precios/materiales-manuales` | cookie | Create or update a non-Odoo material |
 | POST | `/dashboard/extraer-piezas` | cookie | Extract a cut list from an uploaded photo (see **Photo extraction**) |
 | GET | `/dashboard/solicitudes/nueva` | cookie | Form for staff to create an order on a customer's behalf |
 | POST | `/dashboard/solicitudes` | cookie | Create an order as staff (same as `POST /solicitudes`, cookie-authed) |

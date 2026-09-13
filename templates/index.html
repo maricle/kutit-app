@@ -677,6 +677,7 @@
         opt.value = m.nombre;
         opt.textContent = m.nombre;
         if (m.id != null) opt.dataset.id = m.id;
+        if (m.manual_id != null) opt.dataset.manualId = m.manual_id;
         if (m.precio != null) opt.dataset.precio = m.precio;
         if (m.ancho != null) opt.dataset.ancho = m.ancho;
         if (m.largo != null) opt.dataset.largo = m.largo;
@@ -909,6 +910,7 @@
       con_material: conMaterial,
       material: conMaterial ? materialSelect.value : null,
       material_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.id) ? Number(opcionMaterial.dataset.id) : null,
+      material_manual_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.manualId) ? Number(opcionMaterial.dataset.manualId) : null,
       cortes: leerTodosLosCortes(),
     };
     datos[HONEYPOT_FIELD] = hpField.value;

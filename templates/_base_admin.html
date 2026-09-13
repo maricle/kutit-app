@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Kutit{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/css/sb-admin-2.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/dashboard.css">
+{% block head %}{% endblock %}
+</head>
+<body id="page-top">
+
+<div id="wrapper">
+
+  <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/dashboard">
+      <div class="sidebar-brand-icon"><i class="fas fa-cut"></i></div>
+      <div class="sidebar-brand-text mx-3">Kutit</div>
+    </a>
+    <hr class="sidebar-divider my-0">
+
+    <li class="nav-item {{ 'active' if active_nav == 'panel' }}">
+      <a class="nav-link" href="/dashboard">
+        <i class="fas fa-fw fa-table"></i><span>Panel</span>
+      </a>
+    </li>
+    <li class="nav-item {{ 'active' if active_nav == 'nueva' }}">
+      <a class="nav-link" href="/dashboard/solicitudes/nueva">
+        <i class="fas fa-fw fa-plus"></i><span>Nueva solicitud</span>
+      </a>
+    </li>
+    <li class="nav-item {{ 'active' if active_nav == 'precios' }}">
+      <a class="nav-link" href="/dashboard/precios">
+        <i class="fas fa-fw fa-tags"></i><span>Precios</span>
+      </a>
+    </li>
+
+    <hr class="sidebar-divider d-none d-md-block">
+    <div class="text-center d-none d-md-inline">
+      <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+  </ul>
+
+  <div id="content-wrapper" class="d-flex flex-column">
+    <div id="content">
+
+      <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+        <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+          <i class="fa fa-bars"></i>
+        </button>
+        <span class="navbar-text font-weight-bold" id="page-heading">{% block page_heading %}{% endblock %}</span>
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <form method="post" action="/dashboard/logout" class="mb-0">
+              <button type="submit" class="btn btn-link nav-link">
+                <i class="fas fa-sign-out-alt fa-sm fa-fw mr-1"></i>Cerrar sesión
+              </button>
+            </form>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="container-fluid">
+        {% block content %}{% endblock %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<a class="scroll-to-top rounded" href="#page-top"><i class="fas fa-angle-up"></i></a>
+
+<script src="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/vendor/jquery/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/vendor/jquery-easing/jquery.easing.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/StartBootstrap/startbootstrap-sb-admin-2@4.1.4/js/sb-admin-2.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,112 +1,66 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Panel — Kutit</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/dashboard.css">
-</head>
-<body>
+{% extends "_base_admin.html" %}
+{% block title %}Panel — Kutit{% endblock %}
+{% block page_heading %}Panel de producción{% endblock %}
 
-<div class="topbar">
-  <h1>Kutit — Panel de producción</h1>
-  <div style="display:flex;align-items:center;gap:16px;">
-    <a href="/dashboard/solicitudes/nueva">+ Nueva solicitud</a>
-    <a href="/dashboard/precios">Precios</a>
-    <form method="post" action="/dashboard/logout" style="margin:0;">
-      <a href="#" onclick="this.closest('form').submit(); return false;">Cerrar sesión</a>
-    </form>
+{% block content %}
+{% set columnas = [
+  ('esperando', 'Esperando WhatsApp', 'warning', 'Nada pendiente de confirmación.'),
+  ('por_hacer', 'Por hacer', 'secondary', 'Sin solicitudes.'),
+  ('en_proceso', 'En proceso', 'info', 'Sin solicitudes.'),
+  ('terminado', 'Terminado', 'success', 'Sin solicitudes.'),
+  ('canceladas', 'Canceladas', 'danger', 'Sin canceladas.'),
+] %}
+<div class="row">
+  {% for key, titulo, color, vacio in columnas %}
+  <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+    <div class="card shadow h-100">
+      <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold">{{ titulo }}</h6>
+        <span class="badge badge-{{ color }}">{{ grupos[key]|length }}</span>
+      </div>
+      <div class="card-body kanban-col-body">
+        {% for s in grupos[key] %}
+        <div class="card mb-2 orden-card">
+          <div class="card-body p-2">
+            <div class="font-weight-bold small">{{ s.contacto }}</div>
+            <div class="text-muted orden-meta">
+              {{ s.telefono }} ·
+              {% if key == 'canceladas' %}{{ s.motivo_cancelacion or 'sin motivo' }}
+              {% else %}{{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}{% endif %}
+            </div>
+            <div class="btn-group-vertical btn-group-sm w-100 mt-2" role="group">
+              {% if key == 'esperando' %}
+              <button class="btn btn-primary btn-sm" onclick="confirmarSolicitud({{ s.id }})">Confirmar</button>
+              {% elif key == 'por_hacer' %}
+              <button class="btn btn-outline-secondary btn-sm" onclick="moverEtapa({{ s.id }}, 'en_proceso')">→ En proceso</button>
+              {% elif key == 'en_proceso' %}
+              <button class="btn btn-outline-secondary btn-sm" onclick="moverEtapa({{ s.id }}, 'terminado')">→ Terminado</button>
+              {% endif %}
+              <a href="/dashboard/solicitudes/{{ s.id }}" class="btn btn-outline-secondary btn-sm">
+                {{ 'Ver' if key in ['terminado', 'canceladas'] else 'Ver / editar' }}
+              </a>
+              {% if key == 'terminado' %}
+              <a href="/solicitudes/{{ s.id }}/csv" class="btn btn-outline-secondary btn-sm">Descargar CSV</a>
+              {% endif %}
+              {% if key in ['esperando', 'por_hacer', 'en_proceso'] %}
+              <button class="btn btn-outline-danger btn-sm" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
+              {% elif key == 'canceladas' %}
+              <button class="btn btn-outline-danger btn-sm" onclick="eliminarSolicitud({{ s.id }})">Eliminar</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-muted text-center small py-3">{{ vacio }}</div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
+  {% endfor %}
 </div>
+{% endblock %}
 
-<div class="kanban">
-
-  <div class="columna">
-    <h2>Esperando WhatsApp <span class="cant">({{ grupos.esperando|length }})</span></h2>
-    {% for s in grupos.esperando %}
-    <div class="tarjeta">
-      <div class="nombre">{{ s.contacto }}</div>
-      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
-      <div class="acciones">
-        <button class="primario" onclick="confirmarSolicitud({{ s.id }})">Confirmar</button>
-        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
-        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
-      </div>
-    </div>
-    {% else %}
-    <div class="vacio">Nada pendiente de confirmación.</div>
-    {% endfor %}
-  </div>
-
-  <div class="columna">
-    <h2>Por hacer <span class="cant">({{ grupos.por_hacer|length }})</span></h2>
-    {% for s in grupos.por_hacer %}
-    <div class="tarjeta">
-      <div class="nombre">{{ s.contacto }}</div>
-      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
-      <div class="acciones">
-        <button onclick="moverEtapa({{ s.id }}, 'en_proceso')">→ En proceso</button>
-        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
-        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
-      </div>
-    </div>
-    {% else %}
-    <div class="vacio">Sin solicitudes.</div>
-    {% endfor %}
-  </div>
-
-  <div class="columna">
-    <h2>En proceso <span class="cant">({{ grupos.en_proceso|length }})</span></h2>
-    {% for s in grupos.en_proceso %}
-    <div class="tarjeta">
-      <div class="nombre">{{ s.contacto }}</div>
-      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
-      <div class="acciones">
-        <button onclick="moverEtapa({{ s.id }}, 'terminado')">→ Terminado</button>
-        <a href="/dashboard/solicitudes/{{ s.id }}">Ver / editar</a>
-        <button class="peligro" onclick="cancelarSolicitud({{ s.id }})">Cancelar</button>
-      </div>
-    </div>
-    {% else %}
-    <div class="vacio">Sin solicitudes.</div>
-    {% endfor %}
-  </div>
-
-  <div class="columna">
-    <h2>Terminado <span class="cant">({{ grupos.terminado|length }})</span></h2>
-    {% for s in grupos.terminado %}
-    <div class="tarjeta">
-      <div class="nombre">{{ s.contacto }}</div>
-      <div class="meta">{{ s.telefono }} · {{ s.material or '-' }} · {{ s.fecha or 'sin fecha' }}</div>
-      <div class="acciones">
-        <a href="/dashboard/solicitudes/{{ s.id }}">Ver</a>
-        <a href="/solicitudes/{{ s.id }}/csv">CSV</a>
-      </div>
-    </div>
-    {% else %}
-    <div class="vacio">Sin solicitudes.</div>
-    {% endfor %}
-  </div>
-
-  <div class="columna">
-    <h2>Canceladas <span class="cant">({{ grupos.canceladas|length }})</span></h2>
-    {% for s in grupos.canceladas %}
-    <div class="tarjeta">
-      <div class="nombre">{{ s.contacto }}</div>
-      <div class="meta">{{ s.telefono }} · {{ s.motivo_cancelacion or 'sin motivo' }}</div>
-      <div class="acciones">
-        <a href="/dashboard/solicitudes/{{ s.id }}">Ver</a>
-        <button class="peligro" onclick="eliminarSolicitud({{ s.id }})">Eliminar</button>
-      </div>
-    </div>
-    {% else %}
-    <div class="vacio">Sin canceladas.</div>
-    {% endfor %}
-  </div>
-
-</div>
-
+{% block scripts %}
 <script>
 async function accion(url, method, body){
   const res = await fetch(url, {
@@ -136,6 +90,4 @@ async function eliminarSolicitud(id){
   if (await accion(`/solicitudes/${id}`, 'DELETE')) location.reload();
 }
 </script>
-
-</body>
-</html>
+{% endblock %}

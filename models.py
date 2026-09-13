@@ -24,6 +24,7 @@ class SolicitudCorteIn(BaseModel):
     con_material: bool = True
     material: Optional[str] = "MDF"
     material_id: Optional[int] = None
+    material_manual_id: Optional[int] = None
     cortes: list[FilaCorte] = Field(default_factory=list)
 
     @field_validator("contacto", "telefono")
@@ -42,6 +43,7 @@ class SolicitudCorteUpdate(BaseModel):
     con_material: Optional[bool] = None
     material: Optional[str] = None
     material_id: Optional[int] = None
+    material_manual_id: Optional[int] = None
     cortes: Optional[list[FilaCorte]] = None
 
 
@@ -62,6 +64,16 @@ class EtapaIn(BaseModel):
 class MedidaMaterialIn(BaseModel):
     odoo_id: int
     nombre: str
+    ancho: int
+    largo: int
+    habilitado: bool = True
+    precio_manual: Optional[float] = None
+
+
+class MaterialManualIn(BaseModel):
+    id: Optional[int] = None
+    nombre: str
+    precio: float
     ancho: int
     largo: int
     habilitado: bool = True

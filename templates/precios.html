@@ -1,73 +1,102 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Precios — Kutit</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/dashboard.css">
-</head>
-<body>
+{% extends "_base_admin.html" %}
+{% block title %}Precios — Kutit{% endblock %}
+{% block page_heading %}Precios y materiales{% endblock %}
 
-<div class="topbar">
-  <h1>Kutit</h1>
-  <a href="/dashboard">← Volver al panel</a>
+{% block content %}
+{% if error %}
+<div class="alert alert-warning">No se pudieron traer los precios de Odoo: {{ error }}</div>
+{% endif %}
+
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Servicios</h6></div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm mb-0">
+        <thead><tr><th>Servicio</th><th>Precio</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Corte recto</td>
+            <td>{{ '${:,.0f}'.format(servicios.corte).replace(',', '.') if servicios.corte is not none else 'sin datos' }}</td>
+          </tr>
+          <tr>
+            <td>Pegado de canto</td>
+            <td>{{ '${:,.0f}'.format(servicios.canto).replace(',', '.') if servicios.canto is not none else 'sin datos' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
-<div class="detalle-wrap">
-
-  {% if error %}
-  <div class="aviso-bloqueado">No se pudieron traer los precios de Odoo: {{ error }}</div>
-  {% endif %}
-
-  <div class="card">
-    <h2>Servicios</h2>
-    <table class="lineas">
-      <thead>
-        <tr><th>Servicio</th><th>Precio</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Corte recto</td>
-          <td>{{ '${:,.0f}'.format(servicios.corte).replace(',', '.') if servicios.corte is not none else 'sin datos' }}</td>
-        </tr>
-        <tr>
-          <td>Pegado de canto</td>
-          <td>{{ '${:,.0f}'.format(servicios.canto).replace(',', '.') if servicios.canto is not none else 'sin datos' }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>Materiales</h2>
-    <p class="hint">Cargá el ancho y el largo de cada placa completa (en mm) — Odoo no tiene esa medida, así que se guarda acá para poder calcular cuántas planchas hacen falta por pedido.</p>
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Materiales de Odoo</h6></div>
+  <div class="card-body">
+    <p class="text-muted small">Cargá el ancho y el largo de cada placa completa (en mm) — Odoo no tiene esa medida, así que se guarda acá para poder calcular cuántas planchas hacen falta por pedido. "Precio manual" es opcional: si lo cargás, se muestra ese precio en vez del de Odoo (útil si Odoo no tiene precio cargado o si no querés mostrar ese precio a los clientes).</p>
     {% if materiales %}
-    <table class="lineas" id="tablaMateriales">
-      <thead>
-        <tr><th>Placa</th><th>Precio</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Mostrar en form</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for m in materiales %}
-        <tr data-material data-id="{{ m.id }}" data-nombre="{{ m.nombre }}">
-          <td style="text-align:left;">{{ m.nombre }}</td>
-          <td>{{ '${:,.0f}'.format(m.precio).replace(',', '.') if m.precio is not none else 'sin datos' }}</td>
-          <td><input type="number" class="m-ancho" value="{{ m.ancho or '' }}" style="width:80px" min="0"></td>
-          <td><input type="number" class="m-largo" value="{{ m.largo or '' }}" style="width:80px" min="0"></td>
-          <td><input type="checkbox" class="m-habilitado" {{ 'checked' if m.habilitado }}></td>
-          <td><button type="button" class="btn-guardar-medida">Guardar</button></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm" id="tablaMateriales">
+        <thead>
+          <tr><th>Placa</th><th>Precio Odoo</th><th>Precio manual</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Mostrar en form</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for m in materiales %}
+          <tr data-material data-id="{{ m.id }}" data-nombre="{{ m.nombre }}">
+            <td>{{ m.nombre }}</td>
+            <td>{{ '${:,.0f}'.format(m.precio).replace(',', '.') if m.precio is not none else 'sin datos' }}</td>
+            <td><input type="number" class="form-control form-control-sm m-precio-manual" value="{{ m.precio_manual if m.precio_manual is not none else '' }}" style="width:100px" min="0" placeholder="—"></td>
+            <td><input type="number" class="form-control form-control-sm m-ancho" value="{{ m.ancho or '' }}" style="width:90px" min="0"></td>
+            <td><input type="number" class="form-control form-control-sm m-largo" value="{{ m.largo or '' }}" style="width:90px" min="0"></td>
+            <td class="text-center"><input type="checkbox" class="m-habilitado" {{ 'checked' if m.habilitado }}></td>
+            <td><button type="button" class="btn btn-outline-secondary btn-sm btn-guardar-medida">Guardar</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
-    <div class="vacio">No hay materiales cargados.</div>
+    <div class="text-muted text-center small py-3">No hay materiales cargados.</div>
     {% endif %}
-    <div class="msg" id="msgBox"></div>
+    <div id="msgBox" class="d-none mt-3"></div>
   </div>
-
 </div>
 
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Materiales propios</h6></div>
+  <div class="card-body">
+    <p class="text-muted small">Para placas que no existen como producto en Odoo — no se envían como línea a las cotizaciones de Odoo, solo se usan para el estimado y el cálculo de planchas.</p>
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm" id="tablaMaterialesManuales">
+        <thead>
+          <tr><th>Placa</th><th>Precio</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Mostrar en form</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for m in materiales_manuales %}
+          <tr data-material-manual data-id="{{ m.id }}">
+            <td><input type="text" class="form-control form-control-sm mm-nombre" value="{{ m.nombre }}"></td>
+            <td><input type="number" class="form-control form-control-sm mm-precio" value="{{ m.precio or '' }}" style="width:100px" min="0"></td>
+            <td><input type="number" class="form-control form-control-sm mm-ancho" value="{{ m.ancho or '' }}" style="width:90px" min="0"></td>
+            <td><input type="number" class="form-control form-control-sm mm-largo" value="{{ m.largo or '' }}" style="width:90px" min="0"></td>
+            <td class="text-center"><input type="checkbox" class="mm-habilitado" {{ 'checked' if m.habilitado }}></td>
+            <td><button type="button" class="btn btn-outline-secondary btn-sm btn-guardar-material-manual">Guardar</button></td>
+          </tr>
+          {% endfor %}
+          <tr data-material-manual data-id="">
+            <td><input type="text" class="form-control form-control-sm mm-nombre" placeholder="ej. Melamina 18mm"></td>
+            <td><input type="number" class="form-control form-control-sm mm-precio" style="width:100px" min="0"></td>
+            <td><input type="number" class="form-control form-control-sm mm-ancho" style="width:90px" min="0"></td>
+            <td><input type="number" class="form-control form-control-sm mm-largo" style="width:90px" min="0"></td>
+            <td class="text-center"><input type="checkbox" class="mm-habilitado" checked></td>
+            <td><button type="button" class="btn btn-primary btn-sm btn-guardar-material-manual">Agregar</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="msgBoxManual" class="d-none mt-3"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.querySelectorAll('.btn-guardar-medida').forEach(btn => {
   btn.addEventListener('click', async () => {
@@ -79,17 +108,50 @@ document.querySelectorAll('.btn-guardar-medida').forEach(btn => {
       ancho: Number(fila.querySelector('.m-ancho').value || 0),
       largo: Number(fila.querySelector('.m-largo').value || 0),
       habilitado: fila.querySelector('.m-habilitado').checked,
+      precio_manual: fila.querySelector('.m-precio-manual').value === '' ? null : Number(fila.querySelector('.m-precio-manual').value),
     };
     const res = await fetch('/dashboard/precios/medidas', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(datos),
     });
-    msgBox.className = 'msg ' + (res.ok ? 'ok' : 'err');
+    msgBox.className = 'alert mt-3 ' + (res.ok ? 'alert-success' : 'alert-danger');
     msgBox.textContent = res.ok ? `Medida guardada para ${datos.nombre}.` : 'No se pudo guardar la medida.';
   });
 });
-</script>
 
-</body>
-</html>
+document.querySelectorAll('.btn-guardar-material-manual').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const fila = btn.closest('[data-material-manual]');
+    const msgBox = document.getElementById('msgBoxManual');
+    const nombre = fila.querySelector('.mm-nombre').value.trim();
+    const precio = fila.querySelector('.mm-precio').value;
+    if (!nombre || precio === ''){
+      msgBox.className = 'alert mt-3 alert-danger';
+      msgBox.textContent = 'Completá al menos el nombre y el precio.';
+      return;
+    }
+    const esNuevo = !fila.dataset.id;
+    const datos = {
+      id: esNuevo ? null : Number(fila.dataset.id),
+      nombre,
+      precio: Number(precio),
+      ancho: Number(fila.querySelector('.mm-ancho').value || 0),
+      largo: Number(fila.querySelector('.mm-largo').value || 0),
+      habilitado: fila.querySelector('.mm-habilitado').checked,
+    };
+    const res = await fetch('/dashboard/precios/materiales-manuales', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(datos),
+    });
+    if (res.ok && esNuevo){
+      location.reload();
+      return;
+    }
+    msgBox.className = 'alert mt-3 ' + (res.ok ? 'alert-success' : 'alert-danger');
+    msgBox.textContent = res.ok ? `Material guardado: ${nombre}.` : 'No se pudo guardar el material.';
+  });
+});
+</script>
+{% endblock %}

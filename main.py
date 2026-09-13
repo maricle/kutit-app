@@ -16,7 +16,15 @@ import db
 import odoo_client
 import security
 import vision_extract
-from models import CancelarIn, EtapaIn, FilaCorte, MedidaMaterialIn, SolicitudCorteIn, SolicitudCorteUpdate
+from models import (
+    CancelarIn,
+    EtapaIn,
+    FilaCorte,
+    MaterialManualIn,
+    MedidaMaterialIn,
+    SolicitudCorteIn,
+    SolicitudCorteUpdate,
+)
 
 
 @asynccontextmanager
@@ -151,15 +159,32 @@ async def listar_materiales():
         materiales = []
     if not materiales:
         materiales = [{"id": None, "nombre": "MDF", "precio": None}, {"id": None, "nombre": "Acrilico", "precio": None}]
+
     medidas = await db.listar_medidas_materiales()
     visibles = []
     for m in materiales:
         medida = medidas.get(m["id"])
         if medida and not medida["habilitado"]:
             continue
+        m["manual_id"] = None
         m["ancho"] = medida["ancho"] if medida else None
         m["largo"] = medida["largo"] if medida else None
+        if medida and medida["precio_manual"] is not None:
+            m["precio"] = float(medida["precio_manual"])
         visibles.append(m)
+
+    for m in await db.listar_materiales_manuales():
+        if not m["habilitado"]:
+            continue
+        visibles.append({
+            "id": None,
+            "manual_id": m["id"],
+            "nombre": m["nombre"],
+            "precio": float(m["precio"]) if m["precio"] is not None else None,
+            "ancho": m["ancho"],
+            "largo": m["largo"],
+        })
+
     return visibles
 
 
@@ -206,7 +231,7 @@ async def dashboard(request: Request):
         "terminado": [s for s in solicitudes if s["estado"] == "confirmada" and s["etapa_produccion"] == "terminado"],
         "canceladas": [s for s in solicitudes if s["estado"] == "cancelada"],
     }
-    return templates.TemplateResponse(request, "dashboard.html", {"grupos": grupos})
+    return templates.TemplateResponse(request, "dashboard.html", {"grupos": grupos, "active_nav": "panel"})
 
 
 @app.get("/dashboard/precios", response_class=HTMLResponse)
@@ -229,18 +254,37 @@ async def precios_page(request: Request):
         m["ancho"] = medida["ancho"] if medida else None
         m["largo"] = medida["largo"] if medida else None
         m["habilitado"] = bool(medida["habilitado"]) if medida else True
+        m["precio_manual"] = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
+
+    materiales_manuales = await db.listar_materiales_manuales()
 
     return templates.TemplateResponse(
-        request, "precios.html", {"materiales": materiales, "servicios": servicios, "error": error}
+        request,
+        "precios.html",
+        {
+            "materiales": materiales,
+            "materiales_manuales": materiales_manuales,
+            "servicios": servicios,
+            "error": error,
+            "active_nav": "precios",
+        },
     )
 
 
 @app.post("/dashboard/precios/medidas", dependencies=[Depends(requerir_sesion)])
 async def guardar_medida_material_endpoint(datos: MedidaMaterialIn):
     await db.guardar_medida_material(
-        datos.odoo_id, datos.nombre, datos.ancho, datos.largo, datos.habilitado
+        datos.odoo_id, datos.nombre, datos.ancho, datos.largo, datos.habilitado, datos.precio_manual
     )
     return {"ok": True}
+
+
+@app.post("/dashboard/precios/materiales-manuales", dependencies=[Depends(requerir_sesion)])
+async def guardar_material_manual_endpoint(datos: MaterialManualIn):
+    material_id = await db.guardar_material_manual(
+        datos.id, datos.nombre, datos.precio, datos.ancho, datos.largo, datos.habilitado
+    )
+    return {"ok": True, "id": material_id}
 
 
 @app.post("/dashboard/extraer-piezas", dependencies=[Depends(requerir_sesion)])
@@ -292,8 +336,13 @@ async def nueva_solicitud_page(request: Request):
         materiales = []
     if not materiales:
         materiales = [{"id": None, "nombre": "MDF"}, {"id": None, "nombre": "Acrilico"}]
+    materiales_manuales = [m for m in await db.listar_materiales_manuales() if m["habilitado"]]
 
-    return templates.TemplateResponse(request, "nueva_solicitud.html", {"materiales": materiales})
+    return templates.TemplateResponse(
+        request,
+        "nueva_solicitud.html",
+        {"materiales": materiales, "materiales_manuales": materiales_manuales, "active_nav": "nueva"},
+    )
 
 
 @app.post("/dashboard/solicitudes", dependencies=[Depends(requerir_sesion)])
@@ -314,17 +363,34 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
         materiales = []
     if not materiales:
         materiales = [{"id": None, "nombre": "MDF"}, {"id": None, "nombre": "Acrilico"}]
+    materiales_manuales = [m for m in await db.listar_materiales_manuales() if m["habilitado"]]
 
     placas_necesarias = None
-    if solicitud.get("con_material") and solicitud.get("material_id"):
-        medida = await db.obtener_medida_material(solicitud["material_id"])
-        if medida and medida["ancho"] and medida["largo"]:
-            placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], medida["ancho"], medida["largo"])
+    if solicitud.get("con_material"):
+        ancho = largo = None
+        if solicitud.get("material_id"):
+            medida = await db.obtener_medida_material(solicitud["material_id"])
+            if medida:
+                ancho, largo = medida["ancho"], medida["largo"]
+        elif solicitud.get("material_manual_id"):
+            manual = await db.obtener_material_manual(solicitud["material_manual_id"])
+            if manual:
+                ancho, largo = manual["ancho"], manual["largo"]
+        if ancho and largo:
+            placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], ancho, largo)
 
     return templates.TemplateResponse(
         request,
         "detalle.html",
-        {"solicitud": solicitud, "materiales": materiales, "placas_necesarias": placas_necesarias},
+        {
+            "solicitud": solicitud,
+            "materiales": materiales,
+            "materiales_manuales": materiales_manuales,
+            "placas_necesarias": placas_necesarias,
+            "estado_label": ESTADOS_LABELS.get(solicitud["estado"], solicitud["estado"]),
+            "etapa_label": ETAPAS_LABELS.get(solicitud["etapa_produccion"]),
+            "active_nav": "panel",
+        },
     )
 
 

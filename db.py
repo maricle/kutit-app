@@ -48,6 +48,17 @@ CREATE TABLE IF NOT EXISTS medidas_material (
 );
 """
 
+SCHEMA_MATERIALES_MANUALES = """
+CREATE TABLE IF NOT EXISTS materiales_manuales (
+    id SERIAL PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    precio NUMERIC,
+    ancho INTEGER,
+    largo INTEGER,
+    habilitado INTEGER NOT NULL DEFAULT 1
+);
+"""
+
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
@@ -62,15 +73,20 @@ async def init_db():
         await con.execute(SCHEMA_SOLICITUDES)
         await con.execute(SCHEMA_LINEAS)
         await con.execute(SCHEMA_MEDIDAS_MATERIAL)
+        await con.execute(SCHEMA_MATERIALES_MANUALES)
         for columna in (
             "odoo_pedido_id INTEGER",
             "odoo_pedido_nombre TEXT",
             "con_material INTEGER NOT NULL DEFAULT 1",
             "material_id INTEGER",
+            "material_manual_id INTEGER",
         ):
             await con.execute(f"ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS {columna}")
         await con.execute(
             "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS habilitado INTEGER NOT NULL DEFAULT 1"
+        )
+        await con.execute(
+            "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS precio_manual NUMERIC"
         )
 
 
@@ -89,11 +105,12 @@ async def crear_solicitud(datos) -> int:
     pool = await get_pool()
     async with pool.acquire() as con, con.transaction():
         solicitud_id = await con.fetchval(
-            """INSERT INTO solicitudes (contacto, telefono, email, fecha, con_material, material, material_id, estado)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'esperando_confirmacion_whatsapp')
+            """INSERT INTO solicitudes
+               (contacto, telefono, email, fecha, con_material, material, material_id, material_manual_id, estado)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'esperando_confirmacion_whatsapp')
                RETURNING id""",
             datos.contacto, datos.telefono, datos.email, datos.fecha,
-            int(datos.con_material), datos.material, datos.material_id,
+            int(datos.con_material), datos.material, datos.material_id, datos.material_manual_id,
         )
         for c in datos.cortes:
             await con.execute(
@@ -129,11 +146,24 @@ async def actualizar_solicitud(solicitud_id: int, datos):
     pool = await get_pool()
     async with pool.acquire() as con, con.transaction():
         campos, valores = [], []
-        for campo in ("contacto", "telefono", "email", "fecha", "con_material", "material", "material_id"):
+        for campo in ("contacto", "telefono", "email", "fecha"):
             valor = getattr(datos, campo, None)
             if valor is not None:
-                valores.append(int(valor) if campo == "con_material" else valor)
+                valores.append(valor)
                 campos.append(f"{campo} = ${len(valores)}")
+        if datos.con_material is not None:
+            # material/material_id/material_manual_id sólo tienen sentido junto con
+            # con_material, y a diferencia de los campos de arriba sí necesitan poder
+            # limpiarse a NULL (ej. al pasar de un material de Odoo a uno manual) —
+            # por eso van siempre los cuatro juntos en vez de saltear los que sean None.
+            valores.append(int(datos.con_material))
+            campos.append(f"con_material = ${len(valores)}")
+            valores.append(datos.material)
+            campos.append(f"material = ${len(valores)}")
+            valores.append(datos.material_id)
+            campos.append(f"material_id = ${len(valores)}")
+            valores.append(datos.material_manual_id)
+            campos.append(f"material_manual_id = ${len(valores)}")
         if campos:
             valores.append(solicitud_id)
             await con.execute(
@@ -200,11 +230,43 @@ async def obtener_medida_material(odoo_id: int):
     return dict(fila) if fila else None
 
 
-async def guardar_medida_material(odoo_id: int, nombre: str, ancho: int, largo: int, habilitado: bool):
+async def guardar_medida_material(
+    odoo_id: int, nombre: str, ancho: int, largo: int, habilitado: bool, precio_manual: float | None = None
+):
     pool = await get_pool()
     await pool.execute(
-        """INSERT INTO medidas_material (odoo_id, nombre, ancho, largo, habilitado)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (odoo_id) DO UPDATE SET nombre = $2, ancho = $3, largo = $4, habilitado = $5""",
-        odoo_id, nombre, ancho, largo, int(habilitado),
+        """INSERT INTO medidas_material (odoo_id, nombre, ancho, largo, habilitado, precio_manual)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (odoo_id) DO UPDATE SET nombre = $2, ancho = $3, largo = $4, habilitado = $5, precio_manual = $6""",
+        odoo_id, nombre, ancho, largo, int(habilitado), precio_manual,
     )
+
+
+async def listar_materiales_manuales():
+    pool = await get_pool()
+    filas = await pool.fetch("SELECT * FROM materiales_manuales ORDER BY id")
+    return _rows_a_dicts(filas)
+
+
+async def obtener_material_manual(material_id: int):
+    pool = await get_pool()
+    fila = await pool.fetchrow("SELECT * FROM materiales_manuales WHERE id = $1", material_id)
+    return dict(fila) if fila else None
+
+
+async def guardar_material_manual(
+    material_id: int | None, nombre: str, precio: float, ancho: int, largo: int, habilitado: bool
+) -> int:
+    pool = await get_pool()
+    if material_id is None:
+        return await pool.fetchval(
+            """INSERT INTO materiales_manuales (nombre, precio, ancho, largo, habilitado)
+               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
+            nombre, precio, ancho, largo, int(habilitado),
+        )
+    await pool.execute(
+        """UPDATE materiales_manuales SET nombre = $2, precio = $3, ancho = $4, largo = $5, habilitado = $6
+           WHERE id = $1""",
+        material_id, nombre, precio, ancho, largo, int(habilitado),
+    )
+    return material_id
