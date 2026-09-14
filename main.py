@@ -174,7 +174,7 @@ async def listar_materiales():
         visibles.append(m)
 
     for m in await db.listar_materiales_manuales():
-        if not m["habilitado"]:
+        if m["categoria"] != "material" or not m["habilitado"]:
             continue
         visibles.append({
             "id": None,
@@ -191,9 +191,18 @@ async def listar_materiales():
 @app.get("/precios")
 async def precios_servicios():
     try:
-        return await asyncio.to_thread(odoo_client.obtener_precios_servicios)
+        servicios = await asyncio.to_thread(odoo_client.obtener_precios_servicios)
     except odoo_client.OdooError:
-        return {"corte": None, "canto": None}
+        servicios = {"corte": None, "canto": None}
+
+    medidas = await db.listar_medidas_materiales()
+    for clave, odoo_id in (("corte", config.ODOO_PRODUCT_CORTE_ID), ("canto", config.ODOO_PRODUCT_CANTO_ID)):
+        medida = medidas.get(odoo_id)
+        if medida and not medida["habilitado"]:
+            servicios[clave] = None
+        elif medida and medida["precio_manual"] is not None:
+            servicios[clave] = float(medida["precio_manual"])
+    return servicios
 
 
 @app.get("/pedido/{solicitud_id}", response_class=HTMLResponse)
@@ -234,40 +243,92 @@ async def dashboard(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {"grupos": grupos, "active_nav": "panel"})
 
 
+async def _lista_precios() -> tuple[list[dict], str | None]:
+    """Arma la lista unificada de precios (servicios + materiales, de Odoo y
+    manuales) que se administra en /dashboard/precios. El precio efectivo de
+    cada fila de Odoo es su precio_manual local si está cargado, si no el
+    precio vivo de Odoo."""
+    error = None
+    materiales_odoo = []
+    servicios_odoo = {"corte": None, "canto": None}
+    try:
+        materiales_odoo = await asyncio.to_thread(odoo_client.listar_materiales)
+        servicios_odoo = await asyncio.to_thread(odoo_client.obtener_precios_servicios)
+    except odoo_client.OdooError as exc:
+        error = str(exc)
+
+    medidas = await db.listar_medidas_materiales()
+    items = []
+
+    for odoo_id, nombre, precio_vivo in (
+        (config.ODOO_PRODUCT_CORTE_ID, "Corte recto", servicios_odoo["corte"]),
+        (config.ODOO_PRODUCT_CANTO_ID, "Pegado de canto", servicios_odoo["canto"]),
+    ):
+        medida = medidas.get(odoo_id)
+        precio_manual = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
+        items.append({
+            "clave": f"odoo:{odoo_id}",
+            "origen": "odoo",
+            "categoria": "servicio",
+            "odoo_id": odoo_id,
+            "manual_id": None,
+            "nombre": nombre,
+            "precio": precio_manual if precio_manual is not None else precio_vivo,
+            "precio_manual": precio_manual,
+            "precio_odoo": precio_vivo,
+            "ancho": None,
+            "largo": None,
+            "activo": bool(medida["habilitado"]) if medida else True,
+        })
+
+    for m in materiales_odoo:
+        medida = medidas.get(m["id"])
+        precio_manual = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
+        items.append({
+            "clave": f"odoo:{m['id']}",
+            "origen": "odoo",
+            "categoria": "material",
+            "odoo_id": m["id"],
+            "manual_id": None,
+            "nombre": m["nombre"],
+            "precio": precio_manual if precio_manual is not None else m["precio"],
+            "precio_manual": precio_manual,
+            "precio_odoo": m["precio"],
+            "ancho": medida["ancho"] if medida else None,
+            "largo": medida["largo"] if medida else None,
+            "activo": bool(medida["habilitado"]) if medida else True,
+        })
+
+    for m in await db.listar_materiales_manuales():
+        items.append({
+            "clave": f"manual:{m['id']}",
+            "origen": "manual",
+            "categoria": m["categoria"],
+            "odoo_id": None,
+            "manual_id": m["id"],
+            "nombre": m["nombre"],
+            "precio": float(m["precio"]) if m["precio"] is not None else None,
+            "precio_manual": None,
+            "precio_odoo": None,
+            "ancho": m["ancho"],
+            "largo": m["largo"],
+            "activo": bool(m["habilitado"]),
+        })
+
+    return items, error
+
+
 @app.get("/dashboard/precios", response_class=HTMLResponse)
 async def precios_page(request: Request):
     if not sesion_activa(request):
         return templates.TemplateResponse(request, "login.html")
 
-    error = None
-    materiales = []
-    servicios = {"corte": None, "canto": None}
-    try:
-        materiales = await asyncio.to_thread(odoo_client.listar_materiales)
-        servicios = await asyncio.to_thread(odoo_client.obtener_precios_servicios)
-    except odoo_client.OdooError as exc:
-        error = str(exc)
-
-    medidas = await db.listar_medidas_materiales()
-    for m in materiales:
-        medida = medidas.get(m["id"])
-        m["ancho"] = medida["ancho"] if medida else None
-        m["largo"] = medida["largo"] if medida else None
-        m["habilitado"] = bool(medida["habilitado"]) if medida else True
-        m["precio_manual"] = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
-
-    materiales_manuales = await db.listar_materiales_manuales()
+    items, error = await _lista_precios()
 
     return templates.TemplateResponse(
         request,
         "precios.html",
-        {
-            "materiales": materiales,
-            "materiales_manuales": materiales_manuales,
-            "servicios": servicios,
-            "error": error,
-            "active_nav": "precios",
-        },
+        {"items": items, "error": error, "active_nav": "precios"},
     )
 
 
@@ -279,12 +340,24 @@ async def guardar_medida_material_endpoint(datos: MedidaMaterialIn):
     return {"ok": True}
 
 
+@app.delete("/dashboard/precios/medidas/{odoo_id}", dependencies=[Depends(requerir_sesion)])
+async def eliminar_medida_material_endpoint(odoo_id: int):
+    await db.eliminar_medida_material(odoo_id)
+    return {"ok": True}
+
+
 @app.post("/dashboard/precios/materiales-manuales", dependencies=[Depends(requerir_sesion)])
 async def guardar_material_manual_endpoint(datos: MaterialManualIn):
     material_id = await db.guardar_material_manual(
-        datos.id, datos.nombre, datos.precio, datos.ancho, datos.largo, datos.habilitado
+        datos.id, datos.categoria, datos.nombre, datos.precio, datos.ancho, datos.largo, datos.habilitado
     )
     return {"ok": True, "id": material_id}
+
+
+@app.delete("/dashboard/precios/materiales-manuales/{material_id}", dependencies=[Depends(requerir_sesion)])
+async def eliminar_material_manual_endpoint(material_id: int):
+    await db.eliminar_material_manual(material_id)
+    return {"ok": True}
 
 
 @app.post("/dashboard/extraer-piezas", dependencies=[Depends(requerir_sesion)])

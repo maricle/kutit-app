@@ -64,16 +64,24 @@ class EtapaIn(BaseModel):
 class MedidaMaterialIn(BaseModel):
     odoo_id: int
     nombre: str
-    ancho: int
-    largo: int
+    ancho: Optional[int] = None
+    largo: Optional[int] = None
     habilitado: bool = True
     precio_manual: Optional[float] = None
 
 
 class MaterialManualIn(BaseModel):
     id: Optional[int] = None
+    categoria: str = "material"
     nombre: str
     precio: float
-    ancho: int
-    largo: int
+    ancho: Optional[int] = None
+    largo: Optional[int] = None
     habilitado: bool = True
+
+    @field_validator("categoria")
+    @classmethod
+    def categoria_valida(cls, v):
+        if v not in ("material", "servicio"):
+            raise ValueError("categoria debe ser 'material' o 'servicio'")
+        return v

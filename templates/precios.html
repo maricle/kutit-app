@@ -2,156 +2,303 @@
 {% block title %}Precios — Kutit{% endblock %}
 {% block page_heading %}Precios y materiales{% endblock %}
 
+{% block head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.11/css/dataTables.bootstrap4.min.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 {% if error %}
-<div class="alert alert-warning">No se pudieron traer los precios de Odoo: {{ error }}</div>
+<div class="alert alert-warning">No se pudieron traer los precios de Odoo: {{ error }}. Los materiales/servicios de Odoo no van a aparecer hasta que se resuelva — los propios sí.</div>
 {% endif %}
 
 <div class="card shadow mb-4">
-  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Servicios</h6></div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm mb-0">
-        <thead><tr><th>Servicio</th><th>Precio</th></tr></thead>
-        <tbody>
-          <tr>
-            <td>Corte recto</td>
-            <td>{{ '${:,.0f}'.format(servicios.corte).replace(',', '.') if servicios.corte is not none else 'sin datos' }}</td>
-          </tr>
-          <tr>
-            <td>Pegado de canto</td>
-            <td>{{ '${:,.0f}'.format(servicios.canto).replace(',', '.') if servicios.canto is not none else 'sin datos' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
+    <h6 class="m-0 font-weight-bold">Lista de precios</h6>
+    <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalAgregar">+ Agregar precio manual</button>
   </div>
-</div>
-
-<div class="card shadow mb-4">
-  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Materiales de Odoo</h6></div>
   <div class="card-body">
-    <p class="text-muted small">Cargá el ancho y el largo de cada placa completa (en mm) — Odoo no tiene esa medida, así que se guarda acá para poder calcular cuántas planchas hacen falta por pedido. "Precio manual" es opcional: si lo cargás, se muestra ese precio en vez del de Odoo (útil si Odoo no tiene precio cargado o si no querés mostrar ese precio a los clientes).</p>
-    {% if materiales %}
+    <p class="text-muted small">
+      Los de origen <strong>Odoo</strong> muestran el precio de Odoo salvo que cargues un precio manual, que lo pisa
+      (útil si Odoo no tiene precio cargado o no querés mostrar ese precio a los clientes). Los de origen
+      <strong>Propio</strong> no existen como producto en Odoo — no se envían como línea a las cotizaciones de Odoo,
+      solo se usan acá y en el presupuesto/formulario público (los servicios propios son solo de referencia interna:
+      el estimado del formulario público sólo calcula Corte y Canto). Ancho/largo son la medida de la placa completa
+      (mm) y solo aplican a materiales — Odoo no tiene esa medida.
+    </p>
+    <div class="d-flex flex-wrap mb-2" style="gap:.6rem">
+      <select class="form-control form-control-sm" id="filtroCategoria" style="width:auto">
+        <option value="">Todas las categorías</option>
+        <option value="Servicio">Servicios</option>
+        <option value="Material">Materiales</option>
+      </select>
+      <select class="form-control form-control-sm" id="filtroEstado" style="width:auto">
+        <option value="">Todos los estados</option>
+        <option value="Activo">Activos</option>
+        <option value="Archivado">Archivados</option>
+      </select>
+    </div>
     <div class="table-responsive">
-      <table class="table table-bordered table-sm" id="tablaMateriales">
+      <table class="table table-bordered table-sm" id="tablaPrecios" style="width:100%">
         <thead>
-          <tr><th>Placa</th><th>Precio Odoo</th><th>Precio manual</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Mostrar en form</th><th></th></tr>
+          <tr>
+            <th>Categoría</th><th>Nombre</th><th>Origen</th><th>Precio</th>
+            <th>Ancho (mm)</th><th>Largo (mm)</th><th>Estado</th><th>Acciones</th>
+          </tr>
         </thead>
         <tbody>
-          {% for m in materiales %}
-          <tr data-material data-id="{{ m.id }}" data-nombre="{{ m.nombre }}">
-            <td>{{ m.nombre }}</td>
-            <td>{{ '${:,.0f}'.format(m.precio).replace(',', '.') if m.precio is not none else 'sin datos' }}</td>
-            <td><input type="number" class="form-control form-control-sm m-precio-manual" value="{{ m.precio_manual if m.precio_manual is not none else '' }}" style="width:100px" min="0" placeholder="—"></td>
-            <td><input type="number" class="form-control form-control-sm m-ancho" value="{{ m.ancho or '' }}" style="width:90px" min="0"></td>
-            <td><input type="number" class="form-control form-control-sm m-largo" value="{{ m.largo or '' }}" style="width:90px" min="0"></td>
-            <td class="text-center"><input type="checkbox" class="m-habilitado" {{ 'checked' if m.habilitado }}></td>
-            <td><button type="button" class="btn btn-outline-secondary btn-sm btn-guardar-medida">Guardar</button></td>
+          {% for item in items %}
+          <tr data-item data-clave="{{ item.clave }}" data-origen="{{ item.origen }}" data-categoria="{{ item.categoria }}">
+            <td>{{ 'Servicio' if item.categoria == 'servicio' else 'Material' }}</td>
+            <td>
+              {% if item.origen == 'manual' %}
+              <input type="text" class="form-control form-control-sm p-nombre" value="{{ item.nombre }}">
+              {% else %}
+              {{ item.nombre }}
+              {% endif %}
+            </td>
+            <td><span class="badge badge-light">{{ 'Odoo' if item.origen == 'odoo' else 'Propio' }}</span></td>
+            <td data-order="{{ item.precio or 0 }}">
+              <input type="number" class="form-control form-control-sm p-precio" min="0" style="width:110px"
+                     value="{{ item.precio if item.precio is not none else '' }}"
+                     {% if item.origen == 'odoo' %}placeholder="{{ 'sin precio' if item.precio_odoo is none else '${:,.0f}'.format(item.precio_odoo).replace(',', '.') }}"{% endif %}>
+              {% if item.origen == 'odoo' %}
+              <div class="text-muted" style="font-size:.7rem;">Odoo: {{ '${:,.0f}'.format(item.precio_odoo).replace(',', '.') if item.precio_odoo is not none else 'sin datos' }}</div>
+              {% endif %}
+            </td>
+            <td data-order="{{ item.ancho or 0 }}">
+              {% if item.categoria == 'material' %}
+              <input type="number" class="form-control form-control-sm p-ancho" value="{{ item.ancho or '' }}" min="0" style="width:90px">
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td data-order="{{ item.largo or 0 }}">
+              {% if item.categoria == 'material' %}
+              <input type="number" class="form-control form-control-sm p-largo" value="{{ item.largo or '' }}" min="0" style="width:90px">
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td data-order="{{ 1 if item.activo else 0 }}">
+              <span class="badge badge-{{ 'success' if item.activo else 'secondary' }} p-estado-badge">{{ 'Activo' if item.activo else 'Archivado' }}</span>
+            </td>
+            <td class="text-nowrap">
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-guardar">Guardar</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm btn-archivar">{{ 'Archivar' if item.activo else 'Activar' }}</button>
+              <button type="button" class="btn btn-outline-danger btn-sm btn-eliminar">Eliminar</button>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}
-    <div class="text-muted text-center small py-3">No hay materiales cargados.</div>
-    {% endif %}
     <div id="msgBox" class="d-none mt-3"></div>
   </div>
 </div>
 
-<div class="card shadow mb-4">
-  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Materiales propios</h6></div>
-  <div class="card-body">
-    <p class="text-muted small">Para placas que no existen como producto en Odoo — no se envían como línea a las cotizaciones de Odoo, solo se usan para el estimado y el cálculo de planchas.</p>
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm" id="tablaMaterialesManuales">
-        <thead>
-          <tr><th>Placa</th><th>Precio</th><th>Ancho (mm)</th><th>Largo (mm)</th><th>Mostrar en form</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for m in materiales_manuales %}
-          <tr data-material-manual data-id="{{ m.id }}">
-            <td><input type="text" class="form-control form-control-sm mm-nombre" value="{{ m.nombre }}"></td>
-            <td><input type="number" class="form-control form-control-sm mm-precio" value="{{ m.precio or '' }}" style="width:100px" min="0"></td>
-            <td><input type="number" class="form-control form-control-sm mm-ancho" value="{{ m.ancho or '' }}" style="width:90px" min="0"></td>
-            <td><input type="number" class="form-control form-control-sm mm-largo" value="{{ m.largo or '' }}" style="width:90px" min="0"></td>
-            <td class="text-center"><input type="checkbox" class="mm-habilitado" {{ 'checked' if m.habilitado }}></td>
-            <td><button type="button" class="btn btn-outline-secondary btn-sm btn-guardar-material-manual">Guardar</button></td>
-          </tr>
-          {% endfor %}
-          <tr data-material-manual data-id="">
-            <td><input type="text" class="form-control form-control-sm mm-nombre" placeholder="ej. Melamina 18mm"></td>
-            <td><input type="number" class="form-control form-control-sm mm-precio" style="width:100px" min="0"></td>
-            <td><input type="number" class="form-control form-control-sm mm-ancho" style="width:90px" min="0"></td>
-            <td><input type="number" class="form-control form-control-sm mm-largo" style="width:90px" min="0"></td>
-            <td class="text-center"><input type="checkbox" class="mm-habilitado" checked></td>
-            <td><button type="button" class="btn btn-primary btn-sm btn-guardar-material-manual">Agregar</button></td>
-          </tr>
-        </tbody>
-      </table>
+<div class="modal fade" id="modalAgregar" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar precio manual</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="nuevoCategoria">Categoría</label>
+          <select class="form-control" id="nuevoCategoria">
+            <option value="material">Material</option>
+            <option value="servicio">Servicio (solo de referencia — no entra en el estimado público)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="nuevoNombre">Nombre</label>
+          <input type="text" class="form-control" id="nuevoNombre" placeholder="ej. Melamina 18mm Blanca">
+        </div>
+        <div class="form-group">
+          <label for="nuevoPrecio">Precio</label>
+          <input type="number" class="form-control" id="nuevoPrecio" min="0">
+        </div>
+        <div class="form-row" id="nuevoMedidas">
+          <div class="form-group col-6">
+            <label for="nuevoAncho">Ancho (mm)</label>
+            <input type="number" class="form-control" id="nuevoAncho" min="0">
+          </div>
+          <div class="form-group col-6">
+            <label for="nuevoLargo">Largo (mm)</label>
+            <input type="number" class="form-control" id="nuevoLargo" min="0">
+          </div>
+        </div>
+        <div id="modalMsg" class="d-none alert alert-danger"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnGuardarNuevo">Agregar</button>
+      </div>
     </div>
-    <div id="msgBoxManual" class="d-none mt-3"></div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.11/js/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.11/js/dataTables.bootstrap4.min.js"></script>
 <script>
-document.querySelectorAll('.btn-guardar-medida').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const fila = btn.closest('[data-material]');
-    const msgBox = document.getElementById('msgBox');
-    const datos = {
-      odoo_id: Number(fila.dataset.id),
-      nombre: fila.dataset.nombre,
-      ancho: Number(fila.querySelector('.m-ancho').value || 0),
-      largo: Number(fila.querySelector('.m-largo').value || 0),
-      habilitado: fila.querySelector('.m-habilitado').checked,
-      precio_manual: fila.querySelector('.m-precio-manual').value === '' ? null : Number(fila.querySelector('.m-precio-manual').value),
-    };
-    const res = await fetch('/dashboard/precios/medidas', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(datos),
-    });
-    msgBox.className = 'alert mt-3 ' + (res.ok ? 'alert-success' : 'alert-danger');
-    msgBox.textContent = res.ok ? `Medida guardada para ${datos.nombre}.` : 'No se pudo guardar la medida.';
-  });
+const tabla = $('#tablaPrecios').DataTable({
+  pageLength: 10,
+  lengthMenu: [10, 25, 50, 100],
+  order: [[0, 'asc'], [1, 'asc']],
+  columnDefs: [{ targets: 7, orderable: false }],
+  language: {
+    search: 'Buscar:',
+    lengthMenu: 'Mostrar _MENU_ por página',
+    info: 'Mostrando _START_ a _END_ de _TOTAL_',
+    infoEmpty: 'Sin resultados',
+    infoFiltered: '(filtrado de _MAX_ en total)',
+    paginate: { previous: '‹', next: '›' },
+    zeroRecords: 'No hay precios que coincidan con el filtro.',
+  },
 });
 
-document.querySelectorAll('.btn-guardar-material-manual').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const fila = btn.closest('[data-material-manual]');
-    const msgBox = document.getElementById('msgBoxManual');
-    const nombre = fila.querySelector('.mm-nombre').value.trim();
-    const precio = fila.querySelector('.mm-precio').value;
-    if (!nombre || precio === ''){
-      msgBox.className = 'alert mt-3 alert-danger';
-      msgBox.textContent = 'Completá al menos el nombre y el precio.';
-      return;
-    }
-    const esNuevo = !fila.dataset.id;
-    const datos = {
-      id: esNuevo ? null : Number(fila.dataset.id),
-      nombre,
-      precio: Number(precio),
-      ancho: Number(fila.querySelector('.mm-ancho').value || 0),
-      largo: Number(fila.querySelector('.mm-largo').value || 0),
-      habilitado: fila.querySelector('.mm-habilitado').checked,
-    };
-    const res = await fetch('/dashboard/precios/materiales-manuales', {
+document.getElementById('filtroCategoria').addEventListener('change', function(){
+  tabla.column(0).search(this.value).draw();
+});
+document.getElementById('filtroEstado').addEventListener('change', function(){
+  tabla.column(6).search(this.value).draw();
+});
+
+function mostrarMensaje(tipo, texto){
+  const box = document.getElementById('msgBox');
+  if (!texto){ box.className = 'd-none mt-3'; return; }
+  box.className = 'alert mt-3 ' + (tipo === 'ok' ? 'alert-success' : 'alert-danger');
+  box.textContent = texto;
+}
+
+function leerFila(fila){
+  const categoria = fila.dataset.categoria;
+  return {
+    origen: fila.dataset.origen,
+    clave: fila.dataset.clave,
+    categoria,
+    nombre: fila.querySelector('.p-nombre') ? fila.querySelector('.p-nombre').value.trim() : fila.cells[1].textContent.trim(),
+    precio: fila.querySelector('.p-precio').value,
+    ancho: categoria === 'material' && fila.querySelector('.p-ancho') ? fila.querySelector('.p-ancho').value : null,
+    largo: categoria === 'material' && fila.querySelector('.p-largo') ? fila.querySelector('.p-largo').value : null,
+    activo: fila.querySelector('.p-estado-badge').textContent.trim() === 'Activo',
+  };
+}
+
+async function guardarFila(fila, { activoOverride } = {}){
+  const datos = leerFila(fila);
+  const activo = activoOverride !== undefined ? activoOverride : datos.activo;
+
+  let res;
+  if (datos.origen === 'odoo'){
+    const odooId = Number(datos.clave.split(':')[1]);
+    res = await fetch('/dashboard/precios/medidas', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(datos),
+      body: JSON.stringify({
+        odoo_id: odooId,
+        nombre: datos.nombre,
+        ancho: datos.ancho ? Number(datos.ancho) : null,
+        largo: datos.largo ? Number(datos.largo) : null,
+        habilitado: activo,
+        precio_manual: datos.precio === '' ? null : Number(datos.precio),
+      }),
     });
-    if (res.ok && esNuevo){
-      location.reload();
+  } else {
+    if (!datos.nombre || datos.precio === ''){
+      mostrarMensaje('err', 'Completá al menos el nombre y el precio.');
+      return false;
+    }
+    const manualId = Number(datos.clave.split(':')[1]);
+    res = await fetch('/dashboard/precios/materiales-manuales', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        id: manualId,
+        categoria: datos.categoria,
+        nombre: datos.nombre,
+        precio: Number(datos.precio),
+        ancho: datos.ancho ? Number(datos.ancho) : null,
+        largo: datos.largo ? Number(datos.largo) : null,
+        habilitado: activo,
+      }),
+    });
+  }
+
+  if (!res.ok){
+    mostrarMensaje('err', 'No se pudo guardar — probá de nuevo.');
+    return false;
+  }
+
+  if (activoOverride !== undefined){
+    const badge = fila.querySelector('.p-estado-badge');
+    badge.textContent = activo ? 'Activo' : 'Archivado';
+    badge.className = 'badge p-estado-badge badge-' + (activo ? 'success' : 'secondary');
+    fila.cells[6].dataset.order = activo ? 1 : 0;
+    fila.querySelector('.btn-archivar').textContent = activo ? 'Archivar' : 'Activar';
+    tabla.row(fila).invalidate().draw(false);
+  }
+  mostrarMensaje('ok', `Guardado: ${datos.nombre}.`);
+  return true;
+}
+
+document.querySelector('#tablaPrecios tbody').addEventListener('click', async (ev) => {
+  const fila = ev.target.closest('tr[data-item]');
+  if (!fila) return;
+
+  if (ev.target.classList.contains('btn-guardar')){
+    await guardarFila(fila);
+  } else if (ev.target.classList.contains('btn-archivar')){
+    const activo = fila.querySelector('.p-estado-badge').textContent.trim() === 'Activo';
+    await guardarFila(fila, { activoOverride: !activo });
+  } else if (ev.target.classList.contains('btn-eliminar')){
+    const nombre = fila.querySelector('.p-nombre') ? fila.querySelector('.p-nombre').value : fila.cells[1].textContent.trim();
+    if (!confirm(`¿Eliminar "${nombre}" de la lista de precios?`)) return;
+    const origen = fila.dataset.origen;
+    const id = fila.dataset.clave.split(':')[1];
+    const url = origen === 'odoo' ? `/dashboard/precios/medidas/${id}` : `/dashboard/precios/materiales-manuales/${id}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok){
+      mostrarMensaje('err', 'No se pudo eliminar.');
       return;
     }
-    msgBox.className = 'alert mt-3 ' + (res.ok ? 'alert-success' : 'alert-danger');
-    msgBox.textContent = res.ok ? `Material guardado: ${nombre}.` : 'No se pudo guardar el material.';
+    tabla.row(fila).remove().draw();
+    mostrarMensaje('ok', `Eliminado: ${nombre}.`);
+  }
+});
+
+document.getElementById('nuevoCategoria').addEventListener('change', function(){
+  document.getElementById('nuevoMedidas').style.display = this.value === 'material' ? '' : 'none';
+});
+
+document.getElementById('btnGuardarNuevo').addEventListener('click', async () => {
+  const modalMsg = document.getElementById('modalMsg');
+  const categoria = document.getElementById('nuevoCategoria').value;
+  const nombre = document.getElementById('nuevoNombre').value.trim();
+  const precio = document.getElementById('nuevoPrecio').value;
+  if (!nombre || precio === ''){
+    modalMsg.className = 'alert alert-danger';
+    modalMsg.textContent = 'Completá al menos el nombre y el precio.';
+    return;
+  }
+  const res = await fetch('/dashboard/precios/materiales-manuales', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      id: null,
+      categoria,
+      nombre,
+      precio: Number(precio),
+      ancho: categoria === 'material' ? Number(document.getElementById('nuevoAncho').value || 0) : null,
+      largo: categoria === 'material' ? Number(document.getElementById('nuevoLargo').value || 0) : null,
+      habilitado: true,
+    }),
   });
+  if (!res.ok){
+    modalMsg.className = 'alert alert-danger';
+    modalMsg.textContent = 'No se pudo agregar — probá de nuevo.';
+    return;
+  }
+  location.reload();
 });
 </script>
 {% endblock %}

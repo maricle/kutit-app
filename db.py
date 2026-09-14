@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS medidas_material (
 SCHEMA_MATERIALES_MANUALES = """
 CREATE TABLE IF NOT EXISTS materiales_manuales (
     id SERIAL PRIMARY KEY,
+    categoria TEXT NOT NULL DEFAULT 'material',
     nombre TEXT NOT NULL,
     precio NUMERIC,
     ancho INTEGER,
@@ -87,6 +88,9 @@ async def init_db():
         )
         await con.execute(
             "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS precio_manual NUMERIC"
+        )
+        await con.execute(
+            "ALTER TABLE materiales_manuales ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'material'"
         )
 
 
@@ -230,8 +234,18 @@ async def obtener_medida_material(odoo_id: int):
     return dict(fila) if fila else None
 
 
+async def eliminar_medida_material(odoo_id: int):
+    pool = await get_pool()
+    await pool.execute("DELETE FROM medidas_material WHERE odoo_id = $1", odoo_id)
+
+
 async def guardar_medida_material(
-    odoo_id: int, nombre: str, ancho: int, largo: int, habilitado: bool, precio_manual: float | None = None
+    odoo_id: int,
+    nombre: str,
+    ancho: int | None,
+    largo: int | None,
+    habilitado: bool,
+    precio_manual: float | None = None,
 ):
     pool = await get_pool()
     await pool.execute(
@@ -255,18 +269,30 @@ async def obtener_material_manual(material_id: int):
 
 
 async def guardar_material_manual(
-    material_id: int | None, nombre: str, precio: float, ancho: int, largo: int, habilitado: bool
+    material_id: int | None,
+    categoria: str,
+    nombre: str,
+    precio: float,
+    ancho: int | None,
+    largo: int | None,
+    habilitado: bool,
 ) -> int:
     pool = await get_pool()
     if material_id is None:
         return await pool.fetchval(
-            """INSERT INTO materiales_manuales (nombre, precio, ancho, largo, habilitado)
-               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
-            nombre, precio, ancho, largo, int(habilitado),
+            """INSERT INTO materiales_manuales (categoria, nombre, precio, ancho, largo, habilitado)
+               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
+            categoria, nombre, precio, ancho, largo, int(habilitado),
         )
     await pool.execute(
-        """UPDATE materiales_manuales SET nombre = $2, precio = $3, ancho = $4, largo = $5, habilitado = $6
+        """UPDATE materiales_manuales
+           SET categoria = $2, nombre = $3, precio = $4, ancho = $5, largo = $6, habilitado = $7
            WHERE id = $1""",
-        material_id, nombre, precio, ancho, largo, int(habilitado),
+        material_id, categoria, nombre, precio, ancho, largo, int(habilitado),
     )
     return material_id
+
+
+async def eliminar_material_manual(material_id: int):
+    pool = await get_pool()
+    await pool.execute("DELETE FROM materiales_manuales WHERE id = $1", material_id)

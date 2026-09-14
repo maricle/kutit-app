@@ -35,31 +35,36 @@ Created automatically on startup (`db.init_db`, called from the FastAPI
 | `canto_1..4` | which of the 4 edges get edge-banding (canto) |
 | `rotar` | whether the piece may be rotated to fit the cutting layout |
 
-**`medidas_material`** (panel dimensions, keyed by Odoo `product.template` id)
+**`medidas_material`** (local overrides for an Odoo-backed price, keyed by Odoo `product.template` id)
 
-Odoo has price and name for each panel product but not its physical size, so
-staff enter that here (`/dashboard/precios`) — it's what lets the app compute
-how many full panels an order needs.
+Covers both the two fixed services (`ODOO_PRODUCT_CORTE_ID`/`ODOO_PRODUCT_CANTO_ID`)
+and the dynamically-discovered materials — Odoo has price/name for each, but
+not physical size, and staff sometimes need to override the shown price or
+temporarily hide an item; both are managed here from the unified list at
+`/dashboard/precios` (see **Pricing** below).
 | column | meaning |
 |---|---|
 | `odoo_id` | Odoo `product.template` id (primary key) |
 | `nombre` | cached product name |
-| `ancho`, `largo` | full-panel dimensions in mm |
-| `habilitado` | whether this panel is offered on the public form's material dropdown |
+| `ancho`, `largo` | full-panel dimensions in mm — materials only, `NULL` for services |
+| `habilitado` | whether it's active: shown on the public form/estimate |
 | `precio_manual` | optional override shown instead of Odoo's `list_price` — for when Odoo has no price loaded, or staff don't want to show that price to customers |
 
-**`materiales_manuales`** (materials that don't exist as an Odoo product)
+**`materiales_manuales`** (priced items — materials or services — with no Odoo product at all)
 
-For panels staff want on the public form/budget estimate without creating an
-Odoo product for them. Not tied to Odoo in any way — never pushed as a line
-item to the generated `sale.order` (see **Odoo sync**), only used for the
-public estimate, the material dropdown, and the panel-count calculation.
+For anything staff want in Kutit's price list / the public form's material
+dropdown without creating an Odoo product for it. Not tied to Odoo in any
+way — a material row here is never pushed as a line item to the generated
+`sale.order` (see **Odoo sync**); a service row here is purely for internal
+reference and isn't used by the public budget estimate (which only computes
+Corte and Canto, both always Odoo-backed).
 | column | meaning |
 |---|---|
-| `id` | local id (referenced by `solicitudes.material_manual_id`) |
-| `nombre`, `precio` | shown wherever an Odoo material's name/price would be |
-| `ancho`, `largo` | full-panel dimensions in mm |
-| `habilitado` | whether it's offered on the public form's material dropdown |
+| `id` | local id (referenced by `solicitudes.material_manual_id` for materials) |
+| `categoria` | `material` or `servicio` |
+| `nombre`, `precio` | shown wherever an Odoo item's name/price would be |
+| `ancho`, `largo` | full-panel dimensions in mm — materials only, `NULL` for services |
+| `habilitado` | whether it's active: shown on the public form's material dropdown (materials only) |
 
 ## Request lifecycle
 
@@ -96,6 +101,33 @@ pieces (description, quantity, height/width in mm, edge-banding), which
 pre-fills the cut list table for staff to review before creating the order.
 The image itself is never stored.
 
+## Pricing
+
+`/dashboard/precios` is one unified, sortable/filterable/paginated table
+(server-renders the rows, DataTables — SB Admin 2's usual pairing — handles
+sort/search/paging client-side) built in `main._lista_precios()` by merging
+four sources every time the page loads:
+1. The two fixed services (`ODOO_PRODUCT_CORTE_ID`/`_CANTO_ID`) with their live Odoo price.
+2. Materials dynamically discovered in Odoo (`odoo_client.listar_materiales`).
+3. Local overrides/dimensions for either of the above (`medidas_material`).
+4. Fully manual items with no Odoo product (`materiales_manuales`).
+
+Each row's *effective* price is its `precio_manual` override if set, else the
+live Odoo price. Actions per row:
+- **Guardar** — for an Odoo-backed row, upserts its `medidas_material` override
+  (dimensions/active state/manual price); for a manual row, updates it in place.
+- **Archivar/Activar** — toggles active state (`habilitado`). Inactive rows are
+  excluded from `/materiales`, `/precios`, and the public form's dropdown, but
+  stay in this admin list.
+- **Eliminar** — for a manual row, deletes it outright. For an Odoo-backed row,
+  it deletes the *local override* only — the underlying Odoo product is
+  untouched, so if it's still Odoo-discoverable it reappears on next page load
+  with default (unconfigured) values, which is the intended "reset" behavior.
+
+Manual services are informational only — the public budget estimate only ever
+computes Corte and Canto (both always Odoo-backed), so a manual service row
+has nowhere to plug into that calculation.
+
 ## Auth
 
 There's no user database — a single shared **API key** (`DASHBOARD_API_KEY`)
@@ -116,9 +148,11 @@ the dashboard pages require this cookie via the `requerir_sesion` dependency.
 | GET | `/pedido/{id}` | — | Read-only order status page for the customer |
 | GET | `/health` | — | Health check |
 | GET | `/dashboard` | cookie | Kanban-style board grouped by state/stage |
-| GET | `/dashboard/precios` | cookie | Manage panel prices (from Odoo) and dimensions/visibility (local) |
-| POST | `/dashboard/precios/medidas` | cookie | Save an Odoo panel's dimensions/visibility/manual price override |
-| POST | `/dashboard/precios/materiales-manuales` | cookie | Create or update a non-Odoo material |
+| GET | `/dashboard/precios` | cookie | Unified, sortable/filterable price list — services and materials, Odoo and manual (see **Pricing**) |
+| POST | `/dashboard/precios/medidas` | cookie | Save an Odoo-backed item's dimensions/active state/manual price override |
+| DELETE | `/dashboard/precios/medidas/{odoo_id}` | cookie | Clear local overrides for an Odoo-backed item (reverts to live Odoo values) |
+| POST | `/dashboard/precios/materiales-manuales` | cookie | Create or update a manual (non-Odoo) priced item |
+| DELETE | `/dashboard/precios/materiales-manuales/{id}` | cookie | Permanently delete a manual priced item |
 | POST | `/dashboard/extraer-piezas` | cookie | Extract a cut list from an uploaded photo (see **Photo extraction**) |
 | GET | `/dashboard/solicitudes/nueva` | cookie | Form for staff to create an order on a customer's behalf |
 | POST | `/dashboard/solicitudes` | cookie | Create an order as staff (same as `POST /solicitudes`, cookie-authed) |
