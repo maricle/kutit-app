@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Solicitá tu corte — Clever CNC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,19 +15,25 @@
     --blanco:#ffffff;
     --gris:#f5f5f5;
     --gris-borde:rgba(33,37,41,.15);
+    --gris-placa:#eceae6;
+    --gris-sobrante:#e3e1dd;
     --rojo:#e0342f;
     --radius:6.4px;
   }
   *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
   body{
     margin:0;
     font-family:"Open Sans","Odoo Unicode Support Noto",sans-serif;
     background:var(--gris);
     color:var(--texto);
   }
-  h1,h2,.brand,.submit-btn,.whatsapp-btn,.add-btn,label,.corte-header span{
+  h1,h2,h3,.brand,.submit-btn,.whatsapp-btn,.add-btn,label,.pieza-card-header{
     font-family:Montserrat,"Odoo Unicode Support Noto",sans-serif;
   }
+  button,input,select{font-family:inherit;}
+
+  /* ---------- header ---------- */
   .topbar{
     background:var(--negro);
     padding:20px 20px;
@@ -49,38 +55,72 @@
   .volver-clever:hover{opacity:1;text-decoration:underline;}
   .topbar h1{
     margin:0;
-    font-size:26px;
+    font-size:22px;
     letter-spacing:.5px;
     font-weight:800;
     color:var(--amarillo);
   }
-  .topbar p{
-    margin:6px 0 0;
-    color:var(--blanco);
-    font-size:14px;
-  }
   .wrap{
-    max-width:820px;
+    max-width:860px;
     margin:0 auto;
-    padding:14px 16px 60px;
+    padding:18px 16px 60px;
   }
-  .intro{
-    background:var(--blanco);
-    border:1px solid var(--gris-borde);
-    border-left:5px solid var(--amarillo);
-    border-radius:var(--radius);
-    padding:16px 18px;
-    margin-bottom:20px;
+
+  /* ---------- título de pantalla ---------- */
+  .pantalla-titulo{
+    text-align:center;
+    font-size:23px;
+    font-weight:800;
+    color:var(--negro);
+    margin:6px 0 4px;
+  }
+  .pantalla-subtitulo{
+    text-align:center;
     font-size:14px;
+    color:#555;
+    margin:0 0 20px;
     line-height:1.5;
-    box-shadow:0 1px 3px rgba(0,0,0,.06);
   }
+
+  /* ---------- indicador de progreso ---------- */
+  .wizard-steps{
+    display:flex;
+    gap:6px;
+    margin-bottom:22px;
+  }
+  .wizard-step{
+    flex:1;
+    text-align:center;
+    font-size:11px;
+    font-weight:700;
+    color:#999;
+    padding-bottom:8px;
+    border-bottom:3px solid var(--gris-borde);
+    font-family:Montserrat,sans-serif;
+  }
+  .wizard-step-num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:var(--gris-borde);
+    color:var(--texto);
+    font-size:11px;
+    margin-right:4px;
+  }
+  .wizard-step.activo{color:var(--negro);border-bottom-color:var(--amarillo);}
+  .wizard-step.activo .wizard-step-num{background:var(--amarillo);color:var(--negro);}
+  .wizard-step.completado .wizard-step-num{background:var(--negro);color:var(--amarillo);}
+
+  /* ---------- tarjetas genéricas ---------- */
   .card{
     background:var(--blanco);
     border:1px solid var(--gris-borde);
     border-radius:var(--radius);
-    padding:22px;
-    margin-bottom:20px;
+    padding:20px;
+    margin-bottom:18px;
     box-shadow:0 1px 3px rgba(0,0,0,.06);
   }
   .card h2{
@@ -91,342 +131,342 @@
     border-bottom:2px solid var(--amarillo);
     padding-bottom:10px;
   }
-  .grid2{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:14px;
-  }
+  .card p.ayuda{font-size:13px;color:#666;line-height:1.5;margin:-6px 0 16px;}
+
+  /* ---------- formulario genérico ---------- */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media (max-width:560px){ .grid2{grid-template-columns:1fr;} }
-  label{
-    display:block;
-    font-size:13px;
-    font-weight:600;
-    color:var(--texto);
-    margin-bottom:6px;
-  }
-  input[type=text],input[type=tel],input[type=email],input[type=date],input[type=number],select,textarea{
+  label{display:block;font-size:13px;font-weight:600;color:var(--texto);margin-bottom:6px;}
+  input[type=text],input[type=tel],input[type=email],input[type=number],select{
     width:100%;
-    padding:8px 12px;
+    padding:11px 12px;
     border:1px solid var(--gris-borde);
     border-radius:var(--radius);
-    font-size:14px;
+    font-size:15px;
     background:var(--blanco);
-    font-family:inherit;
     color:var(--texto);
   }
-  input:focus,select:focus,textarea:focus{
+  input:focus,select:focus{
     outline:none;
     border-color:var(--amarillo);
     box-shadow:0 0 0 3px rgba(251,203,0,.35);
   }
-  textarea{resize:vertical;min-height:70px;}
-  .field{margin-bottom:12px;}
-  .check-inline{
+  .field{margin-bottom:14px;}
+
+  /* ---------- opciones de material (paso 1) ---------- */
+  .material-opciones{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  @media (max-width:560px){ .material-opciones{grid-template-columns:1fr;} }
+  .material-opcion{
+    border:2px solid var(--gris-borde);
+    border-radius:var(--radius);
+    background:var(--blanco);
+    padding:18px 14px;
+    text-align:center;
+    font-weight:700;
+    font-size:14.5px;
+    color:var(--texto);
+    cursor:pointer;
+    min-height:64px;
     display:flex;
     align-items:center;
-    gap:8px;
-    font-size:13px;
-    font-weight:600;
-    color:var(--texto);
+    justify-content:center;
   }
-  .check-inline input[type=checkbox]{width:16px;height:16px;flex:none;}
-  .hint{
-    font-size:12.5px;
-    color:#666;
-    margin:-6px 0 14px;
-  }
-  .table-wrap{
-    overflow-x:auto;
-    border:1px solid var(--gris-borde);
-    border-radius:var(--radius);
-    margin-bottom:12px;
-  }
-  table.cortes{
-    border-collapse:collapse;
+  .material-opcion.activa{border-color:var(--amarillo);background:#fffbe8;color:var(--negro);}
+
+  /* ---------- botones ---------- */
+  .btn-full{
+    display:block;
     width:100%;
-    min-width:680px;
-    font-size:13px;
+    padding:14px;
+    border-radius:var(--radius);
+    border:1px solid var(--amarillo);
+    background:var(--amarillo);
+    color:var(--texto);
+    font-weight:700;
+    font-size:15.5px;
+    cursor:pointer;
+    font-family:Montserrat,sans-serif;
   }
+  .btn-full:hover{background:#e6bd00;}
+  .btn-full:disabled{opacity:.6;cursor:not-allowed;}
+  .btn-secundario{
+    display:block;
+    width:100%;
+    padding:13px;
+    border-radius:var(--radius);
+    border:1px solid var(--gris-borde);
+    background:var(--blanco);
+    color:var(--texto);
+    font-weight:700;
+    font-size:14.5px;
+    cursor:pointer;
+    font-family:Montserrat,sans-serif;
+  }
+  .btn-secundario:hover{background:var(--gris);}
+  .wizard-nav{display:flex;gap:10px;margin-top:18px;}
+  .wizard-nav .btn-secundario,.wizard-nav .btn-full{flex:1;}
+  .add-btn{
+    display:block;
+    width:100%;
+    padding:13px;
+    background:var(--blanco);
+    border:1.5px dashed var(--gris-borde);
+    border-radius:var(--radius);
+    color:var(--texto);
+    font-weight:700;
+    cursor:pointer;
+    font-size:14px;
+    font-family:Montserrat,sans-serif;
+    margin-top:10px;
+  }
+  .add-btn:hover{background:var(--gris);border-color:var(--amarillo);}
+
+  /* ---------- paso 2: tabla desktop ---------- */
+  .piezas-desktop{display:block;}
+  .table-wrap{overflow-x:auto;border:1px solid var(--gris-borde);border-radius:var(--radius);margin-bottom:6px;}
+  table.cortes{border-collapse:collapse;width:100%;min-width:640px;font-size:13px;}
   table.cortes thead th{
     background:var(--negro);
     color:var(--amarillo);
     font-family:Montserrat,sans-serif;
     font-weight:700;
-    font-size:11.5px;
+    font-size:11px;
     text-transform:uppercase;
     letter-spacing:.3px;
-    padding:9px 6px;
+    padding:10px 6px;
     text-align:center;
     white-space:nowrap;
   }
-  table.cortes thead th.col-desc{text-align:left;padding-left:10px;}
+  table.cortes thead th.col-desc{text-align:left;padding-left:12px;}
   table.cortes tbody td{
     border-bottom:1px solid var(--gris-borde);
-    padding:2px;
+    padding:6px;
     text-align:center;
     background:var(--blanco);
   }
   table.cortes tbody tr:nth-child(even) td{background:#fbfbfb;}
-  table.cortes td.col-num{
-    color:#999;
-    font-size:12px;
-    width:26px;
-    font-family:Montserrat,sans-serif;
+  table.cortes td.col-desc input{text-align:left;min-width:150px;}
+  table.cortes td input[type=text],table.cortes td input[type=number]{
+    width:100%;min-width:60px;border:1px solid var(--gris-borde);border-radius:4px;
+    padding:8px 6px;font-size:13px;text-align:center;background:var(--blanco);
   }
-  table.cortes td input[type=text],
-  table.cortes td input[type=number]{
-    width:100%;
-    min-width:56px;
-    border:1px solid transparent;
-    border-radius:4px;
-    padding:7px 6px;
-    font-size:13px;
-    background:transparent;
-    text-align:center;
-  }
-  table.cortes td.col-desc input[type=text]{
-    text-align:left;
-    min-width:150px;
-  }
-  table.cortes td input:focus{
-    outline:none;
-    border-color:var(--amarillo);
-    background:#fffbe8;
-  }
-  table.cortes td.col-canto{width:34px;}
-  table.cortes td.col-canto input{width:16px;height:16px;}
-  table.cortes td.col-del{width:30px;}
-  .btn-del-row{
-    border:none;
-    background:none;
-    cursor:pointer;
-    color:var(--rojo);
-    font-size:15px;
-    line-height:1;
-    padding:4px;
-  }
-  .btn-del-row:disabled{opacity:.25;cursor:not-allowed;}
-  .add-btn{
-    display:block;
-    width:100%;
-    padding:11px;
+  table.cortes td input:focus{outline:none;border-color:var(--amarillo);background:#fffbe8;}
+  .btn-cantos{
+    border:1px solid var(--gris-borde);
     background:var(--blanco);
-    border:1.5px dashed var(--gris-borde);
-    border-radius:var(--radius);
-    color:var(--texto);
-    font-weight:600;
-    cursor:pointer;
-    font-size:13px;
-    font-family:"Open Sans",sans-serif;
-  }
-  .add-btn:hover{background:var(--gris);border-color:var(--amarillo);}
-  .submit-btn{
-    display:block;
-    width:100%;
-    padding:12px;
-    background:var(--amarillo);
-    border:1px solid var(--amarillo);
-    border-radius:var(--radius);
-    color:var(--texto);
+    border-radius:4px;
+    padding:7px 8px;
+    font-size:12px;
     font-weight:700;
     cursor:pointer;
-    font-size:15px;
-    margin-top:6px;
+    white-space:nowrap;
+    color:var(--texto);
   }
-  .submit-btn:hover{background:#e6bd00;}
-  .submit-btn:disabled{opacity:.6;cursor:not-allowed;}
-  .whatsapp-btn{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    width:100%;
-    text-align:center;
-    text-decoration:none;
-    padding:11px;
-    background:var(--negro);
-    color:var(--blanco);
-    border-radius:var(--radius);
-    font-weight:700;
+  .btn-cantos.con-canto{border-color:var(--amarillo);background:#fffbe8;}
+  .fila-acciones{display:flex;gap:6px;justify-content:center;}
+  .btn-icono{
+    border:1px solid var(--gris-borde);
+    background:var(--blanco);
+    border-radius:4px;
+    width:30px;height:30px;
+    cursor:pointer;
     font-size:14px;
-    margin-top:10px;
-    transition:box-shadow .25s ease;
+    line-height:1;
+    color:var(--texto);
   }
-  .whatsapp-btn:hover{background:#2c2c2c;}
-  .whatsapp-btn svg{flex:none;}
-  .whatsapp-btn[hidden]{display:none;}
-  .whatsapp-btn.destacado{
-    box-shadow:0 0 0 3px rgba(251,203,0,.6);
+  .btn-icono:hover{background:var(--gris);}
+  .btn-icono.borrar{color:var(--rojo);}
+  .btn-icono:disabled{opacity:.3;cursor:not-allowed;}
+  .ayuda-paste{font-size:12.5px;color:#666;margin:6px 0 0;}
+
+  /* ---------- paso 2: tarjetas mobile ---------- */
+  .piezas-mobile{display:none;}
+  .pieza-card{
+    border:1px solid var(--gris-borde);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:14px;
+    background:var(--blanco);
   }
-  .paso{
-    display:none;
+  .pieza-card-header{
+    font-weight:800;
+    font-size:14px;
+    color:var(--negro);
+    margin-bottom:12px;
+    padding-bottom:8px;
+    border-bottom:2px solid var(--amarillo);
+  }
+  .pieza-card .field label{font-size:13.5px;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{
+    width:44px;height:44px;
+    border-radius:var(--radius);
+    border:1px solid var(--gris-borde);
+    background:var(--gris);
+    font-size:20px;
+    font-weight:700;
+    cursor:pointer;
+    color:var(--texto);
+  }
+  .stepper input{
+    flex:1;
     text-align:center;
-    font-size:12.5px;
+    font-size:17px;
+    font-weight:700;
+    padding:11px 8px;
+  }
+  .medidas-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .medidas-grid input{font-size:17px;padding:12px;}
+  .pieza-card-acciones{display:flex;gap:10px;margin-top:14px;}
+  .pieza-card-acciones button{flex:1;padding:13px;font-size:14px;}
+
+  /* ---------- diagrama de cantos (compartido desktop/mobile) ---------- */
+  .canto-widget{margin-top:4px;}
+  .canto-widget-label{font-size:13.5px;font-weight:600;margin-bottom:8px;display:block;}
+  .canto-diagrama{width:100%;max-width:220px;height:auto;display:block;margin:0 auto;user-select:none;touch-action:manipulation;}
+  .canto-lado{fill:#d8d8d8;stroke:var(--blanco);stroke-width:1;cursor:pointer;}
+  .canto-lado:hover{fill:#c9c9c9;}
+  .canto-lado.activo{fill:var(--amarillo);}
+  .canto-pieza-fondo{fill:var(--blanco);stroke:#999;stroke-width:1.5;}
+  .canto-pieza-texto{font-family:Montserrat,sans-serif;font-size:9px;font-weight:700;fill:#888;text-anchor:middle;}
+
+  /* ---------- modal cantos (desktop) ---------- */
+  .modal-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(17,17,17,.55);
+    align-items:center;justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .modal-overlay.abierto{display:flex;}
+  .modal-caja{
+    background:var(--blanco);
+    border-radius:var(--radius);
+    padding:22px;
+    max-width:300px;
+    width:100%;
+    text-align:center;
+  }
+  .modal-caja h3{margin:0 0 4px;font-size:15px;color:var(--negro);}
+  .modal-caja p{font-size:12.5px;color:#666;margin:0 0 14px;}
+
+  /* ---------- resumen paso 2 ---------- */
+  .resumen-linea{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 18px;
+    background:var(--gris);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    font-size:13.5px;
     font-weight:700;
     color:var(--negro);
-    margin-top:10px;
+    margin-bottom:4px;
   }
-  .paso.visible{display:block;}
-  .ver-pedido-link{
-    display:block;
+  .resumen-linea span{color:#777;font-weight:600;}
+
+  /* ---------- paso 3: distribución ---------- */
+  .placas-necesarias{
     text-align:center;
-    font-size:12.5px;
+    font-size:22px;
+    font-weight:800;
     color:var(--negro);
-    margin-top:8px;
-    text-decoration:underline;
+    margin-bottom:2px;
   }
-  .ver-pedido-link[hidden]{display:none;}
-  .msg{
-    margin-top:14px;
-    padding:12px 14px;
-    border-radius:var(--radius);
-    font-size:13px;
-    font-weight:600;
-    display:none;
+  .placas-necesarias-sub{text-align:center;font-size:13.5px;color:#666;margin-bottom:20px;}
+  .placas-grid{display:grid;grid-template-columns:1fr;gap:18px;}
+  @media (min-width:720px){ .placas-grid{grid-template-columns:1fr 1fr;} }
+  .placa-card{border:1px solid var(--gris-borde);border-radius:var(--radius);padding:14px;background:var(--blanco);}
+  .placa-card-titulo{font-weight:800;font-size:13.5px;color:var(--negro);margin-bottom:2px;}
+  .placa-card-material{font-size:12px;color:#666;margin-bottom:10px;}
+  .placa-svg-wrap{border:1px solid var(--gris-borde);border-radius:4px;overflow:hidden;background:var(--gris-sobrante);}
+  .placa-info{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:12px;color:#555;}
+  .placa-info b{color:var(--negro);}
+  .leyenda-placas{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:#555;margin:14px 0 4px;}
+  .leyenda-item{display:flex;align-items:center;gap:6px;}
+  .leyenda-cuadro{width:13px;height:13px;border-radius:2px;border:1px solid #999;display:inline-block;}
+  .aviso-info{
+    background:#e9f4fb;border:1px solid #b9dcef;border-radius:var(--radius);
+    padding:14px 16px;font-size:13px;color:#1b4a63;line-height:1.6;margin-bottom:16px;
   }
-  .msg.ok{display:block;background:#e7f9e7;border:1px solid #2e7d32;color:#1b5e20;}
-  .msg.err{display:block;background:#fdeaea;border:1px solid var(--rojo);color:#8a1c17;}
-  .notas-corte{
-    background:#e9f4fb;
-    border:1px solid #b9dcef;
-    border-radius:var(--radius);
-    padding:12px 14px;
-    margin-top:14px;
-    font-size:12.5px;
-    color:#1b4a63;
-    line-height:1.6;
-  }
-  .notas-corte strong{color:var(--negro);}
-  .estimado{
+  .confirmar-distribucion-nota{font-size:13px;color:#555;text-align:center;margin:18px 0 4px;}
+
+  /* ---------- resumen tipo tarjeta (paso 3 y 4) ---------- */
+  .resumen-card{
     background:var(--blanco);
     border:1px solid var(--gris-borde);
     border-left:5px solid var(--amarillo);
     border-radius:var(--radius);
-    padding:14px 16px;
-    margin-top:14px;
-    margin-bottom:6px;
-  }
-  .estimado-titulo{
-    font-family:Montserrat,sans-serif;
-    font-weight:700;
-    font-size:12.5px;
-    text-transform:uppercase;
-    letter-spacing:.4px;
-    color:#777;
-    margin-bottom:10px;
-  }
-  .estimado-tabla-wrap{overflow-x:auto;}
-  table.estimado-tabla{
-    width:100%;
-    border-collapse:collapse;
-    font-size:12.5px;
-  }
-  table.estimado-tabla th{
-    text-align:right;
-    font-weight:600;
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:.2px;
-    color:#999;
-    padding:0 4px 6px;
-    border-bottom:1px solid var(--gris-borde);
-    white-space:nowrap;
-  }
-  table.estimado-tabla th:first-child,
-  table.estimado-tabla td:first-child{text-align:left;}
-  table.estimado-tabla td{
-    text-align:right;
-    padding:7px 4px;
-    border-bottom:1px solid var(--gris-borde);
-    color:var(--texto);
-    white-space:nowrap;
-  }
-  table.estimado-tabla td:first-child{
-    white-space:normal;
-    font-weight:600;
-  }
-  .estimado-total-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-top:10px;
-    padding-top:10px;
-    border-top:2px solid var(--negro);
-    font-family:Montserrat,sans-serif;
-    font-weight:800;
-    font-size:17px;
-    color:var(--negro);
-  }
-  .estimado-nota{
-    font-size:11.5px;
-    color:#777;
-    margin-top:8px;
-    font-style:italic;
-    line-height:1.5;
-  }
-  .wizard-steps{
-    display:flex;
-    gap:8px;
-    margin-bottom:18px;
-  }
-  .wizard-step{
-    flex:1;
-    text-align:center;
-    font-size:11.5px;
-    font-weight:600;
-    color:#999;
-    padding-bottom:8px;
-    border-bottom:3px solid var(--gris-borde);
-    font-family:Montserrat,sans-serif;
-  }
-  .wizard-step-num{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:19px;
-    height:19px;
-    border-radius:50%;
-    background:var(--gris-borde);
-    color:var(--texto);
-    font-size:11px;
-    margin-right:4px;
-  }
-  .wizard-step.activo{color:var(--negro);border-bottom-color:var(--amarillo);}
-  .wizard-step.activo .wizard-step-num{background:var(--amarillo);color:var(--negro);}
-  .wizard-step.completado .wizard-step-num{background:var(--negro);color:var(--amarillo);}
-  .wizard-nav{
-    display:flex;
-    gap:10px;
+    padding:16px 18px;
     margin-top:16px;
   }
-  .wizard-btn{
-    flex:1;
-    padding:12px;
-    border-radius:var(--radius);
-    border:1px solid var(--gris-borde);
+  .resumen-card-titulo{
+    font-family:Montserrat,sans-serif;font-weight:700;font-size:12px;
+    text-transform:uppercase;letter-spacing:.4px;color:#777;margin-bottom:10px;
+  }
+  .resumen-card-filas{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;font-size:13.5px;}
+  .resumen-card-filas .r-label{color:#777;font-size:11.5px;text-transform:uppercase;letter-spacing:.2px;}
+  .resumen-card-filas .r-valor{font-weight:700;color:var(--negro);margin-top:2px;}
+
+  /* ---------- paso 4: presupuesto ---------- */
+  .precio-hero{
     background:var(--blanco);
-    color:var(--texto);
-    font-weight:700;
-    font-size:14px;
-    cursor:pointer;
-    font-family:"Open Sans",sans-serif;
-  }
-  .wizard-btn-siguiente{background:var(--amarillo);border-color:var(--amarillo);color:var(--texto);}
-  .wizard-btn-siguiente:hover{background:#e6bd00;}
-  .wizard-btn-atras:hover{background:var(--gris);}
-  .foot{
+    border:1px solid var(--gris-borde);
+    border-top:5px solid var(--amarillo);
+    border-radius:var(--radius);
+    padding:26px 20px;
     text-align:center;
-    font-size:12px;
-    color:#555;
-    margin-top:20px;
+    margin:8px 0 16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
   }
-  .hp-field{
-    position:absolute;
-    left:-9999px;
-    top:-9999px;
-    opacity:0;
-    height:0;
-    width:0;
+  .precio-hero-label{
+    font-family:Montserrat,sans-serif;font-weight:700;font-size:12.5px;
+    text-transform:uppercase;letter-spacing:.6px;color:#777;margin-bottom:6px;
+  }
+  .precio-hero-valor{font-family:Montserrat,sans-serif;font-weight:800;font-size:44px;color:var(--negro);line-height:1.1;}
+  @media (max-width:420px){ .precio-hero-valor{font-size:34px;} }
+  table.desglose{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px;}
+  table.desglose td{padding:9px 2px;border-bottom:1px solid var(--gris-borde);}
+  table.desglose td:last-child{text-align:right;font-weight:600;}
+  table.desglose tr.fila-total td{
+    border-bottom:none;border-top:2px solid var(--negro);
+    font-weight:800;font-size:16px;color:var(--negro);padding-top:12px;
+  }
+  .confirmacion-texto{font-size:13.5px;color:#555;line-height:1.6;text-align:center;margin:16px 0;}
+
+  /* ---------- pantalla de éxito ---------- */
+  .exito-check{
+    width:64px;height:64px;border-radius:50%;background:var(--amarillo);
+    display:flex;align-items:center;justify-content:center;
+    font-size:32px;font-weight:800;color:var(--negro);margin:0 auto 16px;
+  }
+  .exito-titulo{text-align:center;font-size:21px;font-weight:800;color:var(--negro);margin:0 0 6px;}
+  .exito-sub{text-align:center;font-size:14px;color:#555;margin:0 0 20px;line-height:1.5;}
+  .exito-datos{display:flex;justify-content:center;gap:34px;margin-bottom:20px;flex-wrap:wrap;}
+  .exito-dato{text-align:center;}
+  .exito-dato-label{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#777;margin-bottom:4px;}
+  .exito-dato-valor{font-size:19px;font-weight:800;color:var(--negro);}
+  .whatsapp-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;text-align:center;
+    text-decoration:none;padding:14px;background:var(--negro);color:var(--blanco);
+    border-radius:var(--radius);font-weight:700;font-size:15px;font-family:Montserrat,sans-serif;margin-top:6px;
+  }
+  .whatsapp-btn:hover{background:#2c2c2c;}
+  .volver-clever-final{display:block;text-align:center;font-size:13px;color:var(--texto);margin-top:16px;text-decoration:underline;}
+
+  /* ---------- misc ---------- */
+  .msg{margin-top:14px;padding:12px 14px;border-radius:var(--radius);font-size:13.5px;font-weight:600;display:none;}
+  .msg.ok{display:block;background:#e7f9e7;border:1px solid #2e7d32;color:#1b5e20;}
+  .msg.err{display:block;background:#fdeaea;border:1px solid var(--rojo);color:#8a1c17;}
+  .cargando{text-align:center;padding:30px 10px;color:#666;font-size:14px;}
+  .foot{text-align:center;font-size:12px;color:#555;margin-top:24px;}
+  .hp-field{position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;width:0;}
+  [hidden]{display:none !important;}
+
+  @media (max-width:760px){
+    .piezas-desktop{display:none;}
+    .piezas-mobile{display:block;}
   }
 </style>
 </head>
@@ -435,242 +475,235 @@
 <div class="topbar">
   <a href="{{ clever_site_url }}" class="volver-clever">← Volver a Clever CNC</a>
   <h1>Clever CNC</h1>
-  <p>Solicitá tu corte online y recibí tu presupuesto</p>
 </div>
 
 <div class="wrap">
-  <div class="intro">
-    Completá tus datos, cargá las medidas de cada pieza y mirá el presupuesto estimado, en 3 pasos rápidos.
-    Al confirmar acá, coordinás el pago y la entrega por WhatsApp.
-  </div>
 
-  <form id="corteForm">
-    <input type="text" class="hp-field" name="{{ honeypot_field }}" id="hpField" autocomplete="off" tabindex="-1" aria-hidden="true">
+  <div id="vistaWizard">
+    <div class="pantalla-titulo">Pedí tu corte a medida</div>
+    <div class="pantalla-subtitulo">Completá estos pasos y conocé el precio estimado de tu pedido.</div>
 
     <div class="wizard-steps" id="wizardSteps">
-      <div class="wizard-step" data-step="1"><span class="wizard-step-num">1</span> Datos y material</div>
-      <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span> Medidas y canto</div>
-      <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span> Presupuesto</div>
+      <div class="wizard-step" data-step="1"><span class="wizard-step-num">1</span> Tus datos</div>
+      <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span> Tus cortes</div>
+      <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span> Distribución</div>
+      <div class="wizard-step" data-step="4"><span class="wizard-step-num">4</span> Tu presupuesto</div>
     </div>
 
+    <input type="text" class="hp-field" id="hpField" autocomplete="off" tabindex="-1" aria-hidden="true">
+
+    <!-- ============ PASO 1 — TUS DATOS ============ -->
     <div data-paso-contenido="1">
+      <div class="card">
+        <h2>Tus datos</h2>
+        <div class="grid2">
+          <div class="field">
+            <label for="contacto">Nombre y apellido *</label>
+            <input type="text" id="contacto" required>
+          </div>
+          <div class="field">
+            <label for="telefono">WhatsApp *</label>
+            <input type="tel" id="telefono" required placeholder="379...">
+          </div>
+          <div class="field" style="grid-column:1 / -1;">
+            <label for="email">Correo electrónico (opcional)</label>
+            <input type="email" id="email">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Material</h2>
+        <div class="material-opciones">
+          <div class="material-opcion" id="opcionConMaterial" data-valor="si">Quiero comprar material</div>
+          <div class="material-opcion" id="opcionSinMaterial" data-valor="no">Llevo mi propia placa</div>
+        </div>
+        <div class="field" id="materialField" hidden>
+          <label for="material">Tipo de material</label>
+          <select id="material"></select>
+        </div>
+      </div>
+
+      <div class="msg" id="msgPaso1"></div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-full" id="btnPaso1Siguiente" style="width:100%">Continuar con mis cortes →</button>
+      </div>
+    </div>
+
+    <!-- ============ PASO 2 — TUS CORTES ============ -->
+    <div data-paso-contenido="2" hidden>
+      <div class="card">
+        <h2>Agregá las piezas que necesitás</h2>
+        <p class="ayuda">Ingresá las medidas de cada pieza en milímetros. Si necesitás canto, marcá los lados correspondientes.</p>
+
+        <!-- tabla desktop -->
+        <div class="piezas-desktop">
+          <div class="table-wrap">
+            <table class="cortes">
+              <thead>
+                <tr>
+                  <th class="col-desc">Descripción</th>
+                  <th>Cantidad</th>
+                  <th>Largo (mm)</th>
+                  <th>Ancho (mm)</th>
+                  <th>Cantos</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cortesBodyDesktop"></tbody>
+            </table>
+          </div>
+          <p class="ayuda-paste">Podés copiar y pegar varias piezas desde Excel.</p>
+        </div>
+
+        <!-- tarjetas mobile -->
+        <div class="piezas-mobile" id="cortesMobile"></div>
+
+        <button type="button" class="add-btn" id="addPiezaBtn">+ Agregar pieza</button>
+
+        <div class="resumen-linea" id="resumenPaso2" style="margin-top:16px;"></div>
+      </div>
+
+      <div class="msg" id="msgPaso2"></div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-secundario" data-atras="1">← Atrás</button>
+        <button type="button" class="btn-full" id="btnCalcularPlacas">Calcular placas →</button>
+      </div>
+    </div>
+
+    <!-- ============ PASO 3 — DISTRIBUCIÓN ============ -->
+    <div data-paso-contenido="3" hidden>
+      <div id="distribucionContenido"></div>
+      <div class="msg" id="msgPaso3"></div>
+      <div class="wizard-nav">
+        <button type="button" class="btn-secundario" data-atras="2">← Modificar piezas</button>
+        <button type="button" class="btn-full" id="btnConfirmarDistribucion">Confirmar distribución y ver precio →</button>
+      </div>
+    </div>
+
+    <!-- ============ PASO 4 — TU PRESUPUESTO ============ -->
+    <div data-paso-contenido="4" hidden>
+      <div class="pantalla-titulo" style="font-size:19px;">Tu presupuesto</div>
+      <div class="pantalla-subtitulo">Este es el precio estimado de tu pedido.</div>
+
+      <div id="presupuestoContenido"></div>
+
+      <div class="confirmacion-texto">
+        Al confirmar, recibiremos tu pedido y nos comunicaremos por WhatsApp para coordinar el pago y la entrega.
+      </div>
+
+      <div class="msg" id="msgPaso4"></div>
+      <button type="button" class="btn-full" id="btnConfirmarPedido">Confirmar pedido</button>
+      <div class="wizard-nav">
+        <button type="button" class="btn-secundario" id="btnModificarPedido" style="width:100%">← Modificar pedido</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PANTALLA DE ÉXITO ============ -->
+  <div id="vistaExito" hidden>
     <div class="card">
-      <h2>Tus datos</h2>
-      <div class="grid2">
-        <div class="field">
-          <label for="contacto">Nombre y apellido *</label>
-          <input type="text" id="contacto" name="contacto" required>
+      <div class="exito-check">✓</div>
+      <div class="exito-titulo" id="exitoTitulo">¡Gracias!</div>
+      <div class="exito-sub">Recibimos tu solicitud correctamente.</div>
+      <div class="exito-datos">
+        <div class="exito-dato">
+          <div class="exito-dato-label">Pedido</div>
+          <div class="exito-dato-valor" id="exitoPedidoId">#000000</div>
         </div>
-        <div class="field">
-          <label for="telefono">Teléfono / WhatsApp *</label>
-          <input type="tel" id="telefono" name="telefono" required placeholder="379...">
-        </div>
-        <div class="field">
-          <label for="email">Correo electrónico (opcional)</label>
-          <input type="email" id="email" name="email">
-        </div>
-        <div class="field">
-          <label for="fecha">Fecha</label>
-          <input type="date" id="fecha" name="fecha">
-        </div>
-        <div class="field" style="grid-column:1 / -1;">
-          <label class="check-inline">
-            <input type="checkbox" id="conMaterial" checked>
-            Necesito que Clever CNC provea el material (si lo destildás, traés tu propia placa)
-          </label>
-        </div>
-        <div class="field" id="materialField" style="grid-column:1 / -1;">
-          <label for="material">Placa</label>
-          <select id="material" name="material">
-            <option value="MDF">MDF</option>
-            <option value="Acrilico">Acrílico</option>
-          </select>
+        <div class="exito-dato">
+          <div class="exito-dato-label">Total estimado</div>
+          <div class="exito-dato-valor" id="exitoTotal">$0</div>
         </div>
       </div>
+      <div class="exito-sub">Nos comunicaremos con vos por WhatsApp para coordinar el pago y la entrega.</div>
+      <a href="#" class="whatsapp-btn" id="whatsappBtn" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.44-1.42a9.87 9.87 0 0 0 4.6 1.17h.01c5.46 0 9.9-4.45 9.9-9.91S17.5 2 12.04 2zm0 18.02h-.01a8.1 8.1 0 0 1-4.12-1.13l-.3-.18-3.05.8.82-2.97-.19-.31a8.13 8.13 0 0 1-1.25-4.32c0-4.5 3.66-8.16 8.17-8.16 4.5 0 8.16 3.66 8.16 8.16 0 4.5-3.66 8.11-8.23 8.11zm4.48-6.11c-.25-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.13-.16.25-.63.8-.78.96-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.31-.01-.47-.01a.9.9 0 0 0-.65.31c-.22.25-.86.84-.86 2.05s.88 2.38 1 2.54c.12.16 1.73 2.64 4.19 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28z"/></svg>
+        Enviar consulta por WhatsApp
+      </a>
+      <a href="{{ clever_site_url }}" class="volver-clever-final">Volver a Clever CNC</a>
     </div>
-    </div>
-
-    <div data-paso-contenido="2">
-    <div class="card">
-      <h2>Cortes solicitados</h2>
-      <p class="hint">Cargá una fila por pieza. Largo y ancho arrancan con la medida de la placa completa de MDF (2750 × 1830 mm) — ajustalos al tamaño real de cada pieza. L1/L2 son los cantos de los lados largos y A1/A2 los de los lados anchos. Podés escribir directo en la tabla o pegar (Ctrl+V) varias filas copiadas desde Excel, en ese orden: descripción, cantidad, largo, ancho.</p>
-      <div class="table-wrap">
-        <table class="cortes" id="cortesTable">
-          <thead>
-            <tr>
-              <th class="col-num">#</th>
-              <th class="col-desc">Descripción</th>
-              <th>Cant.</th>
-              <th>Largo (mm)</th>
-              <th>Ancho (mm)</th>
-              <th title="Canto en lado largo 1">L1</th>
-              <th title="Canto en lado largo 2">L2</th>
-              <th title="Canto en lado ancho 1">A1</th>
-              <th title="Canto en lado ancho 2">A2</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="cortesBody"></tbody>
-        </table>
-      </div>
-      <button type="button" class="add-btn" id="addCorteBtn">+ Agregar fila</button>
-      <div class="notas-corte">
-        <strong>Notas:</strong><br>
-        - Corte mínimo en 50 mm.<br>
-        - El tapacanto (L1/L2/A1/A2) no descuenta las medidas cargadas — cargá la medida final de la pieza.
-      </div>
-    </div>
-    </div>
-
-    <div data-paso-contenido="3">
-    <div class="estimado" id="estimadoBox" hidden>
-      <div class="estimado-titulo">Presupuesto estimado</div>
-      <div class="estimado-tabla-wrap">
-        <table class="estimado-tabla">
-          <thead>
-            <tr><th>Concepto</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th></tr>
-          </thead>
-          <tbody id="estimadoTablaBody"></tbody>
-        </table>
-      </div>
-      <div class="estimado-total-row">
-        <span>Total estimado</span>
-        <span id="estimadoTotal">$0</span>
-      </div>
-      <div class="estimado-nota" id="estimadoNota"></div>
-    </div>
-
-    <button type="submit" class="submit-btn" id="submitBtn">Confirmar solicitud</button>
-    <a href="#" class="whatsapp-btn" id="whatsappBtn" target="_blank" rel="noopener" hidden>
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.44-1.42a9.87 9.87 0 0 0 4.6 1.17h.01c5.46 0 9.9-4.45 9.9-9.91S17.5 2 12.04 2zm0 18.02h-.01a8.1 8.1 0 0 1-4.12-1.13l-.3-.18-3.05.8.82-2.97-.19-.31a8.13 8.13 0 0 1-1.25-4.32c0-4.5 3.66-8.16 8.17-8.16 4.5 0 8.16 3.66 8.16 8.16 0 4.5-3.66 8.11-8.23 8.11zm4.48-6.11c-.25-.12-1.45-.72-1.67-.8-.22-.08-.39-.12-.55.13-.16.25-.63.8-.78.96-.14.16-.29.18-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.31-.01-.47-.01a.9.9 0 0 0-.65.31c-.22.25-.86.84-.86 2.05s.88 2.38 1 2.54c.12.16 1.73 2.64 4.19 3.7.59.25 1.04.4 1.4.52.59.19 1.12.16 1.54.1.47-.07 1.45-.59 1.65-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.47-.28z"/></svg>
-  Coordinar pago y entrega por WhatsApp
-</a>
-    <div class="paso" id="pasoIndicador"></div>
-    <a href="#" class="ver-pedido-link" id="verPedidoLink" hidden>Ver mi pedido</a>
-    </div>
-
-    <div class="msg" id="msgBox"></div>
-
-    <div class="wizard-nav">
-      <button type="button" class="wizard-btn wizard-btn-atras" id="btnAnterior" hidden>← Atrás</button>
-      <button type="button" class="wizard-btn wizard-btn-siguiente" id="btnSiguiente">Siguiente →</button>
-    </div>
-  </form>
+  </div>
 
   <div class="foot">Clever CNC — info@clevercnc.com.ar — (379) 409-9636</div>
 </div>
 
-<template id="filaTemplate">
-  <tr data-corte>
-    <td class="col-num"></td>
-    <td class="col-desc"><input type="text" class="f-descripcion" placeholder="lado 1, tapa..."></td>
-    <td><input type="number" class="f-cantidad" min="1" placeholder="1"></td>
-    <td><input type="number" class="f-alto" min="0" step="1" placeholder="2750"></td>
-    <td><input type="number" class="f-ancho" min="0" step="1" placeholder="1830"></td>
-    <td class="col-canto"><input type="checkbox" class="f-canto1" title="Canto lado largo 1 (L1)"></td>
-    <td class="col-canto"><input type="checkbox" class="f-canto2" title="Canto lado largo 2 (L2)"></td>
-    <td class="col-canto"><input type="checkbox" class="f-canto3" title="Canto lado ancho 1 (A1)"></td>
-    <td class="col-canto"><input type="checkbox" class="f-canto4" title="Canto lado ancho 2 (A2)"></td>
-    <td class="col-del"><button type="button" class="btn-del-row" title="Eliminar fila">✕</button></td>
-  </tr>
-</template>
+<!-- ============ MODAL DE CANTOS (desktop) ============ -->
+<div class="modal-overlay" id="cantoModal">
+  <div class="modal-caja">
+    <h3>Seleccioná los lados con canto</h3>
+    <p>Tocá cada lado de la pieza para activar o desactivar el canto.</p>
+    <div id="cantoModalDiagrama"></div>
+    <button type="button" class="btn-full" style="margin-top:16px;" id="cantoModalListo">Listo</button>
+  </div>
+</div>
 
 <script>
+(function(){
   const HONEYPOT_FIELD = "{{ honeypot_field }}";
   const WHATSAPP_NUMBER = "{{ whatsapp_number }}";
+  const formatoARS = new Intl.NumberFormat('es-AR', {style:'currency', currency:'ARS', maximumFractionDigits:0});
 
-  const body = document.getElementById('cortesBody');
-  const template = document.getElementById('filaTemplate');
-  const addBtn = document.getElementById('addCorteBtn');
-  const form = document.getElementById('corteForm');
-  const msgBox = document.getElementById('msgBox');
-  const submitBtn = document.getElementById('submitBtn');
-  const whatsappBtn = document.getElementById('whatsappBtn');
-  const pasoIndicador = document.getElementById('pasoIndicador');
-  const verPedidoLink = document.getElementById('verPedidoLink');
-  const fechaInput = document.getElementById('fecha');
-  const hpField = document.getElementById('hpField');
-  const conMaterialCheck = document.getElementById('conMaterial');
-  const materialField = document.getElementById('materialField');
-  const materialSelect = document.getElementById('material');
-  const estimadoBox = document.getElementById('estimadoBox');
-  const estimadoTotal = document.getElementById('estimadoTotal');
-  const estimadoTablaBody = document.getElementById('estimadoTablaBody');
-  const estimadoNota = document.getElementById('estimadoNota');
-  const precios = {corte: null, canto: null};
+  // ---------------------------------------------------------------- estado
+  let pasoActual = 1;
+  const TOTAL_PASOS = 4;
+  let conMaterial = null; // 'si' | 'no'
+  let materiales = [];
+  const precios = {corte:null, canto:null};
+  let piezas = [];
+  let distribucion = null; // resultado de POST /distribucion
+  let pedidoConfirmado = null;
 
-  const formatoARS = new Intl.NumberFormat('es-AR', {style: 'currency', currency: 'ARS', maximumFractionDigits: 0});
+  function nuevaPieza(){
+    return {descripcion:'', cantidad:1, alto:2750, ancho:1830, canto_1:false, canto_2:false, canto_3:false, canto_4:false, rotar:true};
+  }
+  piezas.push(nuevaPieza());
 
+  // ---------------------------------------------------------------- navegación
   const wizardStepEls = Array.from(document.querySelectorAll('.wizard-step'));
   const pasoContenidoEls = Array.from(document.querySelectorAll('[data-paso-contenido]'));
-  const btnAnterior = document.getElementById('btnAnterior');
-  const btnSiguiente = document.getElementById('btnSiguiente');
-  const TOTAL_PASOS = pasoContenidoEls.length;
-  let pasoActual = 1;
 
-  function validarPaso1(){
-    const contacto = document.getElementById('contacto').value.trim();
-    const telefono = document.getElementById('telefono').value.trim();
-    if (!contacto || !telefono){
-      mostrarMensaje('err', 'Completá al menos nombre y teléfono.');
-      return false;
-    }
-    return true;
-  }
-
-  function validarPaso2(){
-    if (leerTodosLosCortes().length === 0){
-      mostrarMensaje('err', 'Agregá al menos un corte.');
-      return false;
-    }
-    return true;
-  }
-
-  function actualizarWizard(){
-    pasoContenidoEls.forEach(el => {
-      el.hidden = Number(el.dataset.pasoContenido) !== pasoActual;
-    });
+  function mostrarPaso(n){
+    pasoActual = n;
+    pasoContenidoEls.forEach(el => { el.hidden = Number(el.dataset.pasoContenido) !== n; });
     wizardStepEls.forEach(el => {
-      const n = Number(el.dataset.step);
-      el.classList.toggle('activo', n === pasoActual);
-      el.classList.toggle('completado', n < pasoActual);
+      const num = Number(el.dataset.step);
+      el.classList.toggle('activo', num === n);
+      el.classList.toggle('completado', num < n);
     });
-    btnAnterior.hidden = pasoActual === 1;
-    btnSiguiente.hidden = pasoActual === TOTAL_PASOS;
-    submitBtn.disabled = pasoActual !== TOTAL_PASOS;
-    if (pasoActual === TOTAL_PASOS) actualizarEstimado();
+    window.scrollTo({top:0, behavior:'smooth'});
   }
 
-  btnSiguiente.addEventListener('click', () => {
-    if (pasoActual === 1 && !validarPaso1()) return;
-    if (pasoActual === 2 && !validarPaso2()) return;
-    mostrarMensaje('', '');
-    pasoActual = Math.min(pasoActual + 1, TOTAL_PASOS);
-    actualizarWizard();
+  document.querySelectorAll('[data-atras]').forEach(btn => {
+    btn.addEventListener('click', () => mostrarPaso(Number(btn.dataset.atras)));
   });
-  btnAnterior.addEventListener('click', () => {
-    pasoActual = Math.max(pasoActual - 1, 1);
-    actualizarWizard();
-  });
-  actualizarWizard();
 
-  function fechaHoyLocal(){
-    const hoy = new Date();
-    const offset = hoy.getTimezoneOffset() * 60000;
-    return new Date(hoy - offset).toISOString().slice(0, 10);
+  function mostrarMensaje(id, tipo, texto){
+    const box = document.getElementById(id);
+    box.className = 'msg ' + (tipo || '');
+    box.textContent = texto || '';
   }
-  fechaInput.value = fechaHoyLocal();
 
-  function actualizarVisibilidadMaterial(){
-    materialField.style.display = conMaterialCheck.checked ? '' : 'none';
+  // ---------------------------------------------------------------- paso 1: datos y material
+  const opcionConMaterial = document.getElementById('opcionConMaterial');
+  const opcionSinMaterial = document.getElementById('opcionSinMaterial');
+  const materialField = document.getElementById('materialField');
+  const materialSelect = document.getElementById('material');
+
+  function elegirMaterial(valor){
+    conMaterial = valor;
+    opcionConMaterial.classList.toggle('activa', valor === 'si');
+    opcionSinMaterial.classList.toggle('activa', valor === 'no');
+    materialField.hidden = valor !== 'si';
   }
-  conMaterialCheck.addEventListener('change', actualizarVisibilidadMaterial);
-  actualizarVisibilidadMaterial();
+  opcionConMaterial.addEventListener('click', () => elegirMaterial('si'));
+  opcionSinMaterial.addEventListener('click', () => elegirMaterial('no'));
+  elegirMaterial('si');
 
   fetch('/materiales')
     .then(res => res.ok ? res.json() : [])
-    .then(materiales => {
-      if (!Array.isArray(materiales) || materiales.length === 0) return;
+    .then(datos => {
+      materiales = Array.isArray(datos) ? datos : [];
       materialSelect.innerHTML = '';
       materiales.forEach(m => {
         const opt = document.createElement('option');
@@ -683,269 +716,587 @@
         if (m.largo != null) opt.dataset.largo = m.largo;
         materialSelect.appendChild(opt);
       });
-      actualizarEstimado();
     })
     .catch(() => {});
 
   fetch('/precios')
     .then(res => res.ok ? res.json() : {})
-    .then(datos => {
-      precios.corte = datos.corte ?? null;
-      precios.canto = datos.canto ?? null;
-      actualizarEstimado();
-    })
+    .then(datos => { precios.corte = datos.corte ?? null; precios.canto = datos.canto ?? null; })
     .catch(() => {});
 
-  function renumerar(){
-    body.querySelectorAll('[data-corte]').forEach((el, i) => {
-      el.querySelector('.col-num').textContent = i + 1;
-    });
-  }
-
-  function agregarCorte(valores){
-    const node = template.content.cloneNode(true);
-    const el = node.querySelector('[data-corte]');
-
-    if (valores){
-      el.querySelector('.f-descripcion').value = valores.descripcion || '';
-      el.querySelector('.f-cantidad').value = valores.cantidad || 1;
-      el.querySelector('.f-alto').value = valores.alto || '2750';
-      el.querySelector('.f-ancho').value = valores.ancho || '1830';
-      el.querySelector('.f-canto1').checked = !!valores.canto_1;
-      el.querySelector('.f-canto2').checked = !!valores.canto_2;
-      el.querySelector('.f-canto3').checked = !!valores.canto_3;
-      el.querySelector('.f-canto4').checked = !!valores.canto_4;
+  document.getElementById('btnPaso1Siguiente').addEventListener('click', () => {
+    const contacto = document.getElementById('contacto').value.trim();
+    const telefono = document.getElementById('telefono').value.trim();
+    if (!contacto || !telefono){
+      mostrarMensaje('msgPaso1', 'err', 'Completá tu nombre y tu WhatsApp para continuar.');
+      return;
     }
+    mostrarMensaje('msgPaso1', '', '');
+    mostrarPaso(2);
+  });
 
-    el.querySelector('.btn-del-row').addEventListener('click', () => {
-      if (body.querySelectorAll('[data-corte]').length <= 1) return;
-      el.remove();
-      renumerar();
-      actualizarLinkWhatsapp();
-      actualizarEstimado();
+  // ---------------------------------------------------------------- paso 2: piezas
+  const cortesBodyDesktop = document.getElementById('cortesBodyDesktop');
+  const cortesMobile = document.getElementById('cortesMobile');
+  const resumenPaso2 = document.getElementById('resumenPaso2');
+
+  const ETIQUETAS_LADO = {canto_1:'Izquierda', canto_2:'Derecha', canto_3:'Arriba', canto_4:'Abajo'};
+
+  function crearDiagramaCanto(pieza, onCambio){
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 120 90');
+    svg.setAttribute('class', 'canto-diagrama');
+
+    const fondo = document.createElementNS(NS, 'rect');
+    fondo.setAttribute('x', 14); fondo.setAttribute('y', 12);
+    fondo.setAttribute('width', 92); fondo.setAttribute('height', 66);
+    fondo.setAttribute('class', 'canto-pieza-fondo');
+    svg.appendChild(fondo);
+
+    const lados = [
+      {campo:'canto_3', x:14, y:2,  w:92, h:10},  // arriba
+      {campo:'canto_4', x:14, y:78, w:92, h:10},  // abajo
+      {campo:'canto_1', x:2,  y:12, w:12, h:66},  // izquierda
+      {campo:'canto_2', x:106,y:12, w:12, h:66},  // derecha
+    ];
+    lados.forEach(l => {
+      const rect = document.createElementNS(NS, 'rect');
+      rect.setAttribute('x', l.x); rect.setAttribute('y', l.y);
+      rect.setAttribute('width', l.w); rect.setAttribute('height', l.h);
+      rect.setAttribute('rx', 2);
+      rect.setAttribute('class', 'canto-lado' + (pieza[l.campo] ? ' activo' : ''));
+      rect.setAttribute('data-campo', l.campo);
+      rect.addEventListener('click', () => {
+        pieza[l.campo] = !pieza[l.campo];
+        rect.classList.toggle('activo', pieza[l.campo]);
+        if (onCambio) onCambio();
+      });
+      svg.appendChild(rect);
+    });
+    return svg;
+  }
+
+  // ----- modal de cantos (desktop) -----
+  const cantoModal = document.getElementById('cantoModal');
+  const cantoModalDiagrama = document.getElementById('cantoModalDiagrama');
+  let piezaEnModal = null;
+
+  function abrirModalCantos(pieza, onCerrar){
+    piezaEnModal = pieza;
+    cantoModalDiagrama.innerHTML = '';
+    cantoModalDiagrama.appendChild(crearDiagramaCanto(pieza, () => {}));
+    cantoModal.classList.add('abierto');
+    cantoModal._onCerrar = onCerrar;
+  }
+  document.getElementById('cantoModalListo').addEventListener('click', () => {
+    cantoModal.classList.remove('abierto');
+    if (cantoModal._onCerrar) cantoModal._onCerrar();
+  });
+  cantoModal.addEventListener('click', (e) => {
+    if (e.target === cantoModal){
+      cantoModal.classList.remove('abierto');
+      if (cantoModal._onCerrar) cantoModal._onCerrar();
+    }
+  });
+
+  function contarCantos(p){
+    return ['canto_1','canto_2','canto_3','canto_4'].filter(k => p[k]).length;
+  }
+
+  function renderPiezas(){
+    // ---- tabla desktop ----
+    cortesBodyDesktop.innerHTML = '';
+    piezas.forEach((p, i) => {
+      const tr = document.createElement('tr');
+
+      const tdDesc = document.createElement('td');
+      tdDesc.className = 'col-desc';
+      const inputDesc = document.createElement('input');
+      inputDesc.type = 'text'; inputDesc.placeholder = 'Estante, lateral...'; inputDesc.value = p.descripcion;
+      inputDesc.addEventListener('input', () => { p.descripcion = inputDesc.value; actualizarResumenYWhatsapp(); });
+      tdDesc.appendChild(inputDesc);
+
+      const tdCant = document.createElement('td');
+      const inputCant = document.createElement('input');
+      inputCant.type = 'number'; inputCant.min = 1; inputCant.value = p.cantidad;
+      inputCant.addEventListener('input', () => { p.cantidad = Number(inputCant.value) || 1; actualizarResumenYWhatsapp(); });
+      tdCant.appendChild(inputCant);
+
+      const tdAlto = document.createElement('td');
+      const inputAlto = document.createElement('input');
+      inputAlto.type = 'number'; inputAlto.min = 0; inputAlto.value = p.alto;
+      inputAlto.addEventListener('input', () => { p.alto = Number(inputAlto.value) || 0; actualizarResumenYWhatsapp(); });
+      tdAlto.appendChild(inputAlto);
+
+      const tdAncho = document.createElement('td');
+      const inputAncho = document.createElement('input');
+      inputAncho.type = 'number'; inputAncho.min = 0; inputAncho.value = p.ancho;
+      inputAncho.addEventListener('input', () => { p.ancho = Number(inputAncho.value) || 0; actualizarResumenYWhatsapp(); });
+      tdAncho.appendChild(inputAncho);
+
+      const tdCantos = document.createElement('td');
+      const btnCantos = document.createElement('button');
+      btnCantos.type = 'button';
+      btnCantos.className = 'btn-cantos' + (contarCantos(p) > 0 ? ' con-canto' : '');
+      btnCantos.textContent = contarCantos(p) > 0 ? `${contarCantos(p)} lado(s)` : 'Seleccionar';
+      btnCantos.addEventListener('click', () => {
+        abrirModalCantos(p, () => {
+          btnCantos.textContent = contarCantos(p) > 0 ? `${contarCantos(p)} lado(s)` : 'Seleccionar';
+          btnCantos.classList.toggle('con-canto', contarCantos(p) > 0);
+          actualizarResumenYWhatsapp();
+        });
+      });
+      tdCantos.appendChild(btnCantos);
+
+      const tdAcciones = document.createElement('td');
+      const divAcciones = document.createElement('div');
+      divAcciones.className = 'fila-acciones';
+      const btnDup = document.createElement('button');
+      btnDup.type = 'button'; btnDup.className = 'btn-icono'; btnDup.title = 'Duplicar'; btnDup.textContent = '⧉';
+      btnDup.addEventListener('click', () => { piezas.splice(i + 1, 0, {...p}); renderPiezas(); });
+      const btnDel = document.createElement('button');
+      btnDel.type = 'button'; btnDel.className = 'btn-icono borrar'; btnDel.title = 'Eliminar'; btnDel.textContent = '✕';
+      btnDel.disabled = piezas.length <= 1;
+      btnDel.addEventListener('click', () => { if (piezas.length <= 1) return; piezas.splice(i, 1); renderPiezas(); });
+      divAcciones.appendChild(btnDup); divAcciones.appendChild(btnDel);
+      tdAcciones.appendChild(divAcciones);
+
+      tr.appendChild(tdDesc); tr.appendChild(tdCant); tr.appendChild(tdAlto);
+      tr.appendChild(tdAncho); tr.appendChild(tdCantos); tr.appendChild(tdAcciones);
+      cortesBodyDesktop.appendChild(tr);
     });
 
-    body.appendChild(node);
-    renumerar();
-    return body.lastElementChild;
-  }
+    // ---- tarjetas mobile ----
+    cortesMobile.innerHTML = '';
+    piezas.forEach((p, i) => {
+      const card = document.createElement('div');
+      card.className = 'pieza-card';
 
-  function leerCorte(el){
-    const cantidad = el.querySelector('.f-cantidad').value;
-    const alto = el.querySelector('.f-alto').value;
-    const ancho = el.querySelector('.f-ancho').value;
-    return {
-      descripcion: el.querySelector('.f-descripcion').value,
-      cantidad: cantidad === '' ? 1 : cantidad,
-      alto: alto === '' ? 2750 : alto,
-      ancho: ancho === '' ? 1830 : ancho,
-      canto_1: el.querySelector('.f-canto1').checked,
-      canto_2: el.querySelector('.f-canto2').checked,
-      canto_3: el.querySelector('.f-canto3').checked,
-      canto_4: el.querySelector('.f-canto4').checked,
-    };
-  }
+      const header = document.createElement('div');
+      header.className = 'pieza-card-header';
+      header.textContent = `Pieza ${i + 1}`;
+      card.appendChild(header);
 
-  function filaSinTocar(c){
-    const sinDescripcion = !c.descripcion || !c.descripcion.trim();
-    const medidaPorDefecto = String(c.alto) === '2750' && String(c.ancho) === '1830';
-    const cantidadPorDefecto = !c.cantidad || String(c.cantidad) === '1';
-    const sinCantos = !c.canto_1 && !c.canto_2 && !c.canto_3 && !c.canto_4;
-    return sinDescripcion && medidaPorDefecto && cantidadPorDefecto && sinCantos;
-  }
+      const campoDesc = document.createElement('div');
+      campoDesc.className = 'field';
+      campoDesc.innerHTML = '<label>Descripción</label>';
+      const inputDesc = document.createElement('input');
+      inputDesc.type = 'text'; inputDesc.placeholder = 'Estante, lateral...'; inputDesc.value = p.descripcion;
+      inputDesc.addEventListener('input', () => { p.descripcion = inputDesc.value; header.textContent = `Pieza ${i + 1}`; actualizarResumenYWhatsapp(); });
+      campoDesc.appendChild(inputDesc);
+      card.appendChild(campoDesc);
 
-  function leerTodosLosCortes(){
-    return Array.from(body.querySelectorAll('[data-corte]'))
-      .map(leerCorte)
-      .filter(c => !filaSinTocar(c));
-  }
+      const campoCant = document.createElement('div');
+      campoCant.className = 'field';
+      campoCant.innerHTML = '<label>Cantidad</label>';
+      const stepper = document.createElement('div');
+      stepper.className = 'stepper';
+      const btnMenos = document.createElement('button'); btnMenos.type = 'button'; btnMenos.textContent = '−';
+      const inputCant = document.createElement('input'); inputCant.type = 'number'; inputCant.min = 1; inputCant.value = p.cantidad;
+      const btnMas = document.createElement('button'); btnMas.type = 'button'; btnMas.textContent = '+';
+      btnMenos.addEventListener('click', () => { p.cantidad = Math.max(1, (Number(inputCant.value) || 1) - 1); inputCant.value = p.cantidad; actualizarResumenYWhatsapp(); });
+      btnMas.addEventListener('click', () => { p.cantidad = (Number(inputCant.value) || 1) + 1; inputCant.value = p.cantidad; actualizarResumenYWhatsapp(); });
+      inputCant.addEventListener('input', () => { p.cantidad = Number(inputCant.value) || 1; actualizarResumenYWhatsapp(); });
+      stepper.appendChild(btnMenos); stepper.appendChild(inputCant); stepper.appendChild(btnMas);
+      campoCant.appendChild(stepper);
+      card.appendChild(campoCant);
 
-  function filaEstimado(concepto, cantidad, precioUnit, subtotal){
-    const tr = document.createElement('tr');
-    [concepto, cantidad, precioUnit, subtotal].forEach(texto => {
-      const td = document.createElement('td');
-      td.textContent = texto;
-      tr.appendChild(td);
+      const campoMedidas = document.createElement('div');
+      campoMedidas.className = 'field';
+      campoMedidas.innerHTML = '<label>Medidas</label>';
+      const gridMedidas = document.createElement('div');
+      gridMedidas.className = 'medidas-grid';
+      const colAlto = document.createElement('div');
+      colAlto.innerHTML = '<label style="font-weight:400;font-size:12px;color:#777;">Largo (mm)</label>';
+      const inputAlto = document.createElement('input'); inputAlto.type = 'number'; inputAlto.min = 0; inputAlto.value = p.alto;
+      inputAlto.addEventListener('input', () => { p.alto = Number(inputAlto.value) || 0; actualizarResumenYWhatsapp(); });
+      colAlto.appendChild(inputAlto);
+      const colAncho = document.createElement('div');
+      colAncho.innerHTML = '<label style="font-weight:400;font-size:12px;color:#777;">Ancho (mm)</label>';
+      const inputAncho = document.createElement('input'); inputAncho.type = 'number'; inputAncho.min = 0; inputAncho.value = p.ancho;
+      inputAncho.addEventListener('input', () => { p.ancho = Number(inputAncho.value) || 0; actualizarResumenYWhatsapp(); });
+      colAncho.appendChild(inputAncho);
+      gridMedidas.appendChild(colAlto); gridMedidas.appendChild(colAncho);
+      campoMedidas.appendChild(gridMedidas);
+      card.appendChild(campoMedidas);
+
+      const campoCanto = document.createElement('div');
+      campoCanto.className = 'canto-widget';
+      campoCanto.innerHTML = '<label class="canto-widget-label">Canto (tocá los lados que necesitás)</label>';
+      campoCanto.appendChild(crearDiagramaCanto(p, actualizarResumenYWhatsapp));
+      card.appendChild(campoCanto);
+
+      const acciones = document.createElement('div');
+      acciones.className = 'pieza-card-acciones';
+      const btnDup = document.createElement('button');
+      btnDup.type = 'button'; btnDup.className = 'btn-secundario'; btnDup.textContent = 'Duplicar pieza';
+      btnDup.addEventListener('click', () => { piezas.splice(i + 1, 0, {...p}); renderPiezas(); });
+      const btnDel = document.createElement('button');
+      btnDel.type = 'button'; btnDel.className = 'btn-secundario'; btnDel.textContent = 'Eliminar';
+      btnDel.disabled = piezas.length <= 1;
+      btnDel.addEventListener('click', () => { if (piezas.length <= 1) return; piezas.splice(i, 1); renderPiezas(); });
+      acciones.appendChild(btnDup); acciones.appendChild(btnDel);
+      card.appendChild(acciones);
+
+      cortesMobile.appendChild(card);
     });
-    return tr;
+
+    actualizarResumenYWhatsapp();
   }
 
-  function actualizarEstimado(){
-    const cortes = leerTodosLosCortes();
-    if (cortes.length === 0 || (precios.corte == null && precios.canto == null)){
-      estimadoBox.hidden = true;
+  function piezaTieneContenido(p){
+    const sinDescripcion = !p.descripcion || !p.descripcion.trim();
+    const medidaPorDefecto = Number(p.alto) === 2750 && Number(p.ancho) === 1830;
+    const cantidadPorDefecto = !p.cantidad || Number(p.cantidad) === 1;
+    const sinCantos = contarCantos(p) === 0;
+    return !(sinDescripcion && medidaPorDefecto && cantidadPorDefecto && sinCantos);
+  }
+
+  function piezasConContenido(){
+    return piezas.filter(piezaTieneContenido);
+  }
+
+  function actualizarResumenYWhatsapp(){
+    const activas = piezasConContenido();
+    const totalPiezas = activas.reduce((acc, p) => acc + (Number(p.cantidad) || 0), 0);
+    const medidasUnicas = new Set(activas.map(p => `${p.alto}x${p.ancho}`)).size;
+    const piezasConCanto = activas.filter(p => contarCantos(p) > 0).reduce((acc, p) => acc + (Number(p.cantidad) || 0), 0);
+    resumenPaso2.innerHTML = `
+      <span>${totalPiezas}</span> pieza${totalPiezas === 1 ? '' : 's'} &nbsp;·&nbsp;
+      <span>${medidasUnicas}</span> medida${medidasUnicas === 1 ? '' : 's'} diferente${medidasUnicas === 1 ? '' : 's'} &nbsp;·&nbsp;
+      <span>${piezasConCanto}</span> pieza${piezasConCanto === 1 ? '' : 's'} con canto
+    `;
+  }
+
+  document.getElementById('addPiezaBtn').addEventListener('click', () => {
+    piezas.push(nuevaPieza());
+    renderPiezas();
+  });
+
+  // ----- pegar desde Excel (tabla desktop) -----
+  const CAMPOS_PEGADO = ['descripcion','cantidad','alto','ancho'];
+  cortesBodyDesktop.addEventListener('paste', (e) => {
+    const texto = (e.clipboardData || window.clipboardData).getData('text');
+    if (!texto || (!texto.includes('\t') && !texto.includes('\n'))) return;
+    e.preventDefault();
+
+    const filaOrigen = e.target.closest('tr');
+    const filasEl = Array.from(cortesBodyDesktop.children);
+    let filaIdx = filaOrigen ? filasEl.indexOf(filaOrigen) : filasEl.length - 1;
+
+    const filasPegadas = texto.replace(/\r/g, '').split('\n').filter(f => f.trim() !== '');
+    filasPegadas.forEach((filaTexto, i) => {
+      const celdas = filaTexto.split('\t');
+      let pieza = piezas[filaIdx + i];
+      if (!pieza){ pieza = nuevaPieza(); piezas.push(pieza); }
+      celdas.forEach((valor, j) => {
+        const campo = CAMPOS_PEGADO[j];
+        if (!campo) return;
+        pieza[campo] = campo === 'descripcion' ? valor.trim() : (Number(valor) || 0);
+      });
+    });
+    renderPiezas();
+  });
+
+  document.getElementById('btnCalcularPlacas').addEventListener('click', async () => {
+    const activas = piezasConContenido();
+    if (activas.length === 0){
+      mostrarMensaje('msgPaso2', 'err', 'Agregá al menos una pieza.');
+      return;
+    }
+    mostrarMensaje('msgPaso2', '', '');
+    await calcularDistribucion(activas);
+    mostrarPaso(3);
+  });
+
+  // ---------------------------------------------------------------- paso 3: distribución
+  const distribucionContenido = document.getElementById('distribucionContenido');
+
+  function medidaMaterialSeleccionado(){
+    const opt = materialSelect.options[materialSelect.selectedIndex];
+    if (!opt) return null;
+    const ancho = opt.dataset.ancho ? Number(opt.dataset.ancho) : null;
+    const largo = opt.dataset.largo ? Number(opt.dataset.largo) : null;
+    return {opt, ancho, largo};
+  }
+
+  async function calcularDistribucion(activas){
+    distribucion = null;
+    if (conMaterial !== 'si'){
+      distribucionContenido.innerHTML = `<div class="aviso-info">Como vas a traer tu propia placa, no calculamos cómo se distribuyen las piezas — más abajo vas a ver el precio del corte y el canto.</div>`;
+      return;
+    }
+    const medida = medidaMaterialSeleccionado();
+    if (!medida || !medida.ancho || !medida.largo){
+      distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución para "${medida && medida.opt ? medida.opt.value : 'el material elegido'}" porque todavía no tiene la medida configurada. Igual podés continuar y ver el precio.</div>`;
       return;
     }
 
-    const totalMetrosCorte = cortes.reduce((acc, c) => {
-      const perimetroMm = 2 * ((Number(c.alto) || 0) + (Number(c.ancho) || 0));
-      return acc + perimetroMm * (Number(c.cantidad) || 0);
-    }, 0) / 1000;
-    const totalMetrosCanto = cortes.reduce((acc, c) => {
-      const alto = Number(c.alto) || 0;
-      const ancho = Number(c.ancho) || 0;
-      const mmCanto = (c.canto_1 ? alto : 0) + (c.canto_2 ? alto : 0) + (c.canto_3 ? ancho : 0) + (c.canto_4 ? ancho : 0);
-      return acc + mmCanto * (Number(c.cantidad) || 0);
-    }, 0) / 1000;
-
-    const filas = [];
-    const notas = [];
-    let total = 0;
-
-    if (precios.corte != null){
-      const subtotalCorte = precios.corte * totalMetrosCorte;
-      total += subtotalCorte;
-      filas.push(filaEstimado('Corte recto', `${totalMetrosCorte.toFixed(2)} m`, `${formatoARS.format(precios.corte)}/m`, formatoARS.format(subtotalCorte)));
-    }
-    if (precios.canto != null && totalMetrosCanto > 0){
-      const subtotalCanto = precios.canto * totalMetrosCanto;
-      total += subtotalCanto;
-      filas.push(filaEstimado('Pegado de canto', `${totalMetrosCanto.toFixed(2)} m`, `${formatoARS.format(precios.canto)}/m`, formatoARS.format(subtotalCanto)));
-    }
-    if (conMaterialCheck.checked){
-      const opt = materialSelect.options[materialSelect.selectedIndex];
-      const precioMaterial = opt && opt.dataset.precio ? Number(opt.dataset.precio) : null;
-      const anchoPlaca = opt && opt.dataset.ancho ? Number(opt.dataset.ancho) : null;
-      const largoPlaca = opt && opt.dataset.largo ? Number(opt.dataset.largo) : null;
-      if (precioMaterial != null && anchoPlaca && largoPlaca){
-        const areaPiezas = cortes.reduce((acc, c) => acc + (Number(c.alto) || 0) * (Number(c.ancho) || 0) * (Number(c.cantidad) || 0), 0);
-        const areaPlaca = anchoPlaca * largoPlaca;
-        const cantidadPlacas = Math.ceil(areaPiezas / areaPlaca);
-        const subtotalMaterial = cantidadPlacas * precioMaterial;
-        total += subtotalMaterial;
-        filas.push(filaEstimado(`Placa ${opt.value}`, `${cantidadPlacas} plancha(s)`, formatoARS.format(precioMaterial), formatoARS.format(subtotalMaterial)));
-      } else if (precioMaterial != null){
-        notas.push(`No se incluyó la placa "${opt.value}" en el total — falta cargar su medida en el panel.`);
-      }
-    } else {
-      notas.push('El material lo trae el cliente.');
-    }
-
-    estimadoTablaBody.innerHTML = '';
-    filas.forEach(fila => estimadoTablaBody.appendChild(fila));
-    estimadoTotal.textContent = formatoARS.format(total);
-    notas.push('Precio estimado — no incluye descuentos.');
-    estimadoNota.textContent = notas.join(' ');
-    estimadoBox.hidden = false;
-  }
-
-  addBtn.addEventListener('click', () => agregarCorte());
-  const FILAS_INICIALES = 10;
-  for (let i = 0; i < FILAS_INICIALES; i++) agregarCorte();
-
-  const CAMPOS_INPUT = ['f-descripcion','f-cantidad','f-alto','f-ancho','f-canto1','f-canto2','f-canto3','f-canto4'];
-  const ES_CHECKBOX = {'f-canto1':true,'f-canto2':true,'f-canto3':true,'f-canto4':true};
-
-  function esVerdadero(valor){
-    const v = (valor || '').toString().trim().toLowerCase();
-    return ['x','si','sí','1','true','yes'].includes(v);
-  }
-
-  body.addEventListener('paste', (e) => {
-    const texto = (e.clipboardData || window.clipboardData).getData('text');
-    if (!texto || !texto.includes('\t') && !texto.includes('\n')) return;
-    e.preventDefault();
-
-    const filaOrigen = e.target.closest('tr[data-corte]');
-    const filasActuales = Array.from(body.querySelectorAll('[data-corte]'));
-    let filaIdx = filaOrigen ? filasActuales.indexOf(filaOrigen) : filasActuales.length - 1;
-    let colIdx = 0;
-    if (filaOrigen){
-      const inputs = Array.from(filaOrigen.querySelectorAll('input'));
-      const activo = inputs.indexOf(document.activeElement);
-      colIdx = activo >= 0 ? activo : 0;
-    }
-
-    const filasPegadas = texto.replace(/\r/g,'').split('\n').filter(f => f.trim() !== '');
-
-    filasPegadas.forEach((filaTexto, i) => {
-      const celdas = filaTexto.split('\t');
-      let filaEl = filasActuales[filaIdx + i];
-      if (!filaEl){
-        filaEl = agregarCorte();
-        filasActuales.push(filaEl);
-      }
-      celdas.forEach((valor, j) => {
-        const campo = CAMPOS_INPUT[colIdx + j];
-        if (!campo) return;
-        const input = filaEl.querySelector('.' + campo);
-        if (!input) return;
-        if (ES_CHECKBOX[campo]) input.checked = esVerdadero(valor);
-        else input.value = valor.trim();
+    distribucionContenido.innerHTML = `<div class="cargando">Calculando la mejor forma de aprovechar la placa…</div>`;
+    try{
+      const res = await fetch('/distribucion', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cortes: activas, ancho_placa: medida.ancho, largo_placa: medida.largo}),
       });
+      if (!res.ok) throw new Error('error');
+      distribucion = await res.json();
+      renderDistribucion(medida);
+    }catch(err){
+      distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución en este momento. Igual podés continuar y ver el precio.</div>`;
+    }
+  }
+
+  function crearSvgPlaca(placa){
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${placa.ancho} ${placa.largo}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.width = '100%';
+    svg.style.display = 'block';
+    svg.style.maxHeight = '420px';
+
+    const fondo = document.createElementNS(NS, 'rect');
+    fondo.setAttribute('x', 0); fondo.setAttribute('y', 0);
+    fondo.setAttribute('width', placa.ancho); fondo.setAttribute('height', placa.largo);
+    fondo.setAttribute('fill', 'var(--gris-placa)');
+    svg.appendChild(fondo);
+
+    const gap = Math.max(4, Math.round(Math.min(placa.ancho, placa.largo) * 0.004));
+    placa.piezas.forEach(p => {
+      const rect = document.createElementNS(NS, 'rect');
+      rect.setAttribute('x', p.x + gap / 2);
+      rect.setAttribute('y', p.y + gap / 2);
+      rect.setAttribute('width', Math.max(0, p.ancho - gap));
+      rect.setAttribute('height', Math.max(0, p.alto - gap));
+      rect.setAttribute('fill', p.desborda ? '#fdeaea' : '#fffdf3');
+      rect.setAttribute('stroke', p.desborda ? 'var(--rojo)' : '#999');
+      rect.setAttribute('stroke-width', Math.max(1, Math.min(placa.ancho, placa.largo) * 0.002));
+      svg.appendChild(rect);
+
+      const areaMinimaParaTexto = 26000; // mm² — evita amontonar texto en piezas muy chicas
+      if (p.ancho * p.alto >= areaMinimaParaTexto){
+        const cx = p.x + p.ancho / 2;
+        const cy = p.y + p.alto / 2;
+        const escala = Math.min(placa.ancho, placa.largo);
+        const fsTitulo = escala * 0.024;
+        const fsMedida = escala * 0.02;
+
+        const t1 = document.createElementNS(NS, 'text');
+        t1.setAttribute('x', cx); t1.setAttribute('y', cy - fsTitulo * 0.2);
+        t1.setAttribute('text-anchor', 'middle');
+        t1.setAttribute('font-family', 'Montserrat, sans-serif');
+        t1.setAttribute('font-weight', '700');
+        t1.setAttribute('font-size', fsTitulo);
+        t1.setAttribute('fill', 'var(--negro)');
+        t1.textContent = p.etiqueta;
+        svg.appendChild(t1);
+
+        const t2 = document.createElementNS(NS, 'text');
+        t2.setAttribute('x', cx); t2.setAttribute('y', cy + fsMedida * 1.3);
+        t2.setAttribute('text-anchor', 'middle');
+        t2.setAttribute('font-family', 'Open Sans, sans-serif');
+        t2.setAttribute('font-size', fsMedida);
+        t2.setAttribute('fill', '#555');
+        t2.textContent = `${p.alto} × ${p.ancho}`;
+        svg.appendChild(t2);
+      }
     });
 
-    renumerar();
-    actualizarLinkWhatsapp();
-    actualizarEstimado();
+    return svg;
+  }
+
+  function renderDistribucion(medida){
+    const nombreMaterial = medida.opt.value;
+    let html = '';
+    html += `<div class="placas-necesarias">Necesitás ${distribucion.num_placas} placa${distribucion.num_placas === 1 ? '' : 's'}</div>`;
+    html += `<div class="placas-necesarias-sub">Así distribuimos tus piezas para aprovechar mejor el material.</div>`;
+    html += `<div class="leyenda-placas">
+      <div class="leyenda-item"><span class="leyenda-cuadro" style="background:#fffdf3;"></span> Piezas</div>
+      <div class="leyenda-item"><span class="leyenda-cuadro" style="background:var(--gris-placa);"></span> Sobrante</div>
+    </div>`;
+    html += `<div class="placas-grid" id="placasGrid"></div>`;
+
+    const totalPiezas = distribucion.placas.reduce((acc, pl) => acc + pl.piezas.length, 0);
+    html += `<div class="resumen-card">
+      <div class="resumen-card-titulo">Resumen</div>
+      <div class="resumen-card-filas">
+        <div><div class="r-label">Material</div><div class="r-valor">${nombreMaterial}</div></div>
+        <div><div class="r-label">Placas necesarias</div><div class="r-valor">${distribucion.num_placas}</div></div>
+        <div><div class="r-label">Piezas</div><div class="r-valor">${totalPiezas}</div></div>
+        <div><div class="r-label">Aprovechamiento</div><div class="r-valor">${distribucion.aprovechamiento}%</div></div>
+        <div><div class="r-label">Metros lineales de corte</div><div class="r-valor">${distribucion.metros_corte} m</div></div>
+        <div><div class="r-label">Metros de canto</div><div class="r-valor">${distribucion.metros_canto} m</div></div>
+      </div>
+    </div>`;
+    html += `<div class="confirmar-distribucion-nota">Revisá que las piezas y medidas sean correctas antes de continuar.</div>`;
+
+    distribucionContenido.innerHTML = html;
+
+    const grid = document.getElementById('placasGrid');
+    distribucion.placas.forEach((placa, i) => {
+      const card = document.createElement('div');
+      card.className = 'placa-card';
+      card.innerHTML = `
+        <div class="placa-card-titulo">Placa ${i + 1} de ${distribucion.num_placas}</div>
+        <div class="placa-card-material">${nombreMaterial} · ${placa.ancho} × ${placa.largo} mm</div>
+      `;
+      const svgWrap = document.createElement('div');
+      svgWrap.className = 'placa-svg-wrap';
+      svgWrap.appendChild(crearSvgPlaca(placa));
+      card.appendChild(svgWrap);
+
+      const info = document.createElement('div');
+      info.className = 'placa-info';
+      info.innerHTML = `
+        <span><b>${placa.piezas.length}</b> piezas</span>
+        <span>Aprovechamiento: <b>${placa.aprovechamiento}%</b></span>
+        <span>Sobrante: <b>${placa.sobrante}%</b></span>
+      `;
+      card.appendChild(info);
+      grid.appendChild(card);
+    });
+  }
+
+  document.getElementById('btnConfirmarDistribucion').addEventListener('click', () => {
+    renderPresupuesto();
+    mostrarPaso(4);
   });
+
+  // ---------------------------------------------------------------- paso 4: presupuesto
+  const presupuestoContenido = document.getElementById('presupuestoContenido');
+  let ultimoCalculo = null;
+
+  function metrosCorteLocal(cortes){
+    return cortes.reduce((acc, c) => acc + 2 * (Number(c.alto) + Number(c.ancho)) * Number(c.cantidad), 0) / 1000;
+  }
+  function metrosCantoLocal(cortes){
+    return cortes.reduce((acc, c) => {
+      const mm = (c.canto_1 ? c.alto : 0) + (c.canto_2 ? c.alto : 0) + (c.canto_3 ? c.ancho : 0) + (c.canto_4 ? c.ancho : 0);
+      return acc + mm * Number(c.cantidad);
+    }, 0) / 1000;
+  }
+
+  function renderPresupuesto(){
+    const activas = piezasConContenido();
+    const totalPiezasUnidades = activas.reduce((acc, p) => acc + Number(p.cantidad), 0);
+    const metrosCorte = distribucion ? distribucion.metros_corte : Number(metrosCorteLocal(activas).toFixed(2));
+    const metrosCanto = distribucion ? distribucion.metros_canto : Number(metrosCantoLocal(activas).toFixed(2));
+    const numPlacas = distribucion ? distribucion.num_placas : null;
+
+    const medida = conMaterial === 'si' ? medidaMaterialSeleccionado() : null;
+    const nombreMaterial = conMaterial === 'si' && medida ? medida.opt.value : null;
+    const precioMaterialUnit = conMaterial === 'si' && medida && medida.opt.dataset.precio ? Number(medida.opt.dataset.precio) : null;
+
+    const filas = [];
+    let total = 0;
+
+    if (nombreMaterial){
+      let resumenTxt = nombreMaterial;
+      if (numPlacas != null) resumenTxt += ` — ${totalPiezasUnidades} piezas, ${numPlacas} placa${numPlacas === 1 ? '' : 's'}`;
+      presupuestoContenido.dataset.resumenMaterial = resumenTxt;
+    }
+
+    if (precioMaterialUnit != null && numPlacas != null && numPlacas > 0){
+      const subtotalMaterial = precioMaterialUnit * numPlacas;
+      total += subtotalMaterial;
+      filas.push(['Material', subtotalMaterial]);
+    }
+    if (precios.corte != null && metrosCorte > 0){
+      const subtotalCorte = precios.corte * metrosCorte;
+      total += subtotalCorte;
+      filas.push(['Servicio de corte', subtotalCorte]);
+    }
+    if (precios.canto != null && metrosCanto > 0){
+      const subtotalCanto = precios.canto * metrosCanto;
+      total += subtotalCanto;
+      filas.push(['Pegado de canto', subtotalCanto]);
+    }
+
+    ultimoCalculo = {totalPiezasUnidades, metrosCorte, metrosCanto, numPlacas, nombreMaterial, total};
+
+    let html = `<div class="resumen-linea">`;
+    if (nombreMaterial) html += `<span>${nombreMaterial}</span>`;
+    html += `<span>${totalPiezasUnidades}</span> pieza${totalPiezasUnidades === 1 ? '' : 's'}`;
+    if (numPlacas != null) html += ` &nbsp;·&nbsp; <span>${numPlacas}</span> placa${numPlacas === 1 ? '' : 's'}`;
+    html += ` &nbsp;·&nbsp; <span>${metrosCorte}</span> m de corte`;
+    if (metrosCanto > 0) html += ` &nbsp;·&nbsp; <span>${metrosCanto}</span> m de canto`;
+    html += `</div>`;
+
+    html += `<div class="precio-hero">
+      <div class="precio-hero-label">Total estimado</div>
+      <div class="precio-hero-valor">${formatoARS.format(total)}</div>
+    </div>`;
+
+    if (filas.length > 0){
+      html += `<table class="desglose"><tbody>`;
+      filas.forEach(([nombre, monto]) => {
+        html += `<tr><td>${nombre}</td><td>${formatoARS.format(monto)}</td></tr>`;
+      });
+      html += `<tr class="fila-total"><td>TOTAL</td><td>${formatoARS.format(total)}</td></tr>`;
+      html += `</tbody></table>`;
+    }
+
+    presupuestoContenido.innerHTML = html;
+  }
+
+  document.getElementById('btnModificarPedido').addEventListener('click', () => {
+    mostrarPaso(conMaterial === 'si' ? 3 : 2);
+  });
+
+  // ---------------------------------------------------------------- confirmar pedido
+  function recolectarDatos(){
+    const activas = piezasConContenido();
+    const medida = conMaterial === 'si' ? medidaMaterialSeleccionado() : null;
+    const datos = {
+      contacto: document.getElementById('contacto').value.trim(),
+      telefono: document.getElementById('telefono').value.trim(),
+      email: document.getElementById('email').value.trim() || null,
+      fecha: null,
+      con_material: conMaterial === 'si',
+      material: conMaterial === 'si' ? materialSelect.value : null,
+      material_id: (conMaterial === 'si' && medida && medida.opt.dataset.id) ? Number(medida.opt.dataset.id) : null,
+      material_manual_id: (conMaterial === 'si' && medida && medida.opt.dataset.manualId) ? Number(medida.opt.dataset.manualId) : null,
+      cortes: activas.map(p => ({
+        descripcion: p.descripcion, cantidad: p.cantidad, alto: p.alto, ancho: p.ancho,
+        canto_1: p.canto_1, canto_2: p.canto_2, canto_3: p.canto_3, canto_4: p.canto_4, rotar: p.rotar,
+      })),
+    };
+    datos[HONEYPOT_FIELD] = document.getElementById('hpField').value;
+    return datos;
+  }
 
   function construirResumenTexto(datos, pedidoUrl){
     let txt = `Solicitud de corte — Clever CNC\n`;
     txt += `Nombre: ${datos.contacto}\n`;
     txt += `Teléfono: ${datos.telefono}\n`;
     if (datos.email) txt += `Email: ${datos.email}\n`;
-    if (datos.fecha) txt += `Fecha necesaria: ${datos.fecha}\n`;
     txt += datos.con_material ? `Placa: ${datos.material}\n` : `Placa: la trae el cliente\n`;
     txt += `\nCortes:\n`;
-    const ETIQUETAS_CANTO = {canto_1:'L1', canto_2:'L2', canto_3:'A1', canto_4:'A2'};
     datos.cortes.forEach((c, i) => {
-      const cantos = ['canto_1','canto_2','canto_3','canto_4']
-        .filter(k => c[k]).map(k => ETIQUETAS_CANTO[k]).join(', ') || '-';
-      txt += `${i+1}) ${c.descripcion || 'sin descripción'} — cant: ${c.cantidad}, `
-        + `${c.alto || '?'}x${c.ancho || '?'} mm (largo x ancho), cantos: ${cantos}\n`;
+      const cantos = Object.keys(ETIQUETAS_LADO).filter(k => c[k]).map(k => ETIQUETAS_LADO[k]).join(', ') || '-';
+      txt += `${i + 1}) ${c.descripcion || 'sin descripción'} — cant: ${c.cantidad}, ${c.alto}x${c.ancho} mm, cantos: ${cantos}\n`;
     });
     if (pedidoUrl) txt += `\nVer mi pedido: ${pedidoUrl}\n`;
     return txt;
   }
 
-  function recolectarDatos(){
-    const conMaterial = conMaterialCheck.checked;
-    const opcionMaterial = materialSelect.options[materialSelect.selectedIndex];
-    const datos = {
-      contacto: document.getElementById('contacto').value.trim(),
-      telefono: document.getElementById('telefono').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      fecha: document.getElementById('fecha').value,
-      con_material: conMaterial,
-      material: conMaterial ? materialSelect.value : null,
-      material_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.id) ? Number(opcionMaterial.dataset.id) : null,
-      material_manual_id: (conMaterial && opcionMaterial && opcionMaterial.dataset.manualId) ? Number(opcionMaterial.dataset.manualId) : null,
-      cortes: leerTodosLosCortes(),
-    };
-    datos[HONEYPOT_FIELD] = hpField.value;
-    return datos;
-  }
-
-  function actualizarLinkWhatsapp(){
+  document.getElementById('btnConfirmarPedido').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
     const datos = recolectarDatos();
-    const texto = encodeURIComponent(construirResumenTexto(datos));
-    whatsappBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
-  }
-  form.addEventListener('input', () => { actualizarLinkWhatsapp(); actualizarEstimado(); });
-  actualizarLinkWhatsapp();
-  actualizarEstimado();
-
-  function mostrarMensaje(tipo, texto){
-    msgBox.className = 'msg ' + tipo;
-    msgBox.textContent = texto;
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const datos = recolectarDatos();
-
     if (!datos.contacto || !datos.telefono){
-      mostrarMensaje('err', 'Completá al menos nombre y teléfono.');
+      mostrarMensaje('msgPaso4', 'err', 'Faltan tus datos de contacto — volvé al paso 1.');
       return;
     }
     if (datos.cortes.length === 0){
-      mostrarMensaje('err', 'Agregá al menos un corte.');
+      mostrarMensaje('msgPaso4', 'err', 'No hay piezas cargadas — volvé al paso 2.');
       return;
     }
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Enviando...';
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    mostrarMensaje('msgPaso4', '', '');
 
     try{
       const res = await fetch('/solicitudes', {
@@ -957,29 +1308,33 @@
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail ? JSON.stringify(err.detail) : ('status ' + res.status));
       }
-
       const resultado = await res.json().catch(() => ({}));
-      if (resultado.id){
-        const pedidoUrl = `${window.location.origin}/pedido/${resultado.id}`;
-        const texto = encodeURIComponent(construirResumenTexto(datos, pedidoUrl));
-        whatsappBtn.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
-        verPedidoLink.href = pedidoUrl;
-        verPedidoLink.hidden = false;
-      }
-
-      mostrarMensaje('ok', '¡Listo! Recibimos tu solicitud.');
-      pasoIndicador.textContent = 'Tocá "Coordinar pago y entrega por WhatsApp" para terminar.';
-      pasoIndicador.classList.add('visible');
-      whatsappBtn.hidden = false;
-      whatsappBtn.classList.add('destacado');
-      submitBtn.textContent = 'Solicitud confirmada ✓';
-      btnAnterior.hidden = true;
+      pedidoConfirmado = resultado;
+      mostrarExito(datos, resultado);
     }catch(err){
-      mostrarMensaje('err', 'No pudimos confirmar la solicitud. Probá de nuevo.');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Confirmar solicitud';
+      mostrarMensaje('msgPaso4', 'err', 'No pudimos confirmar la solicitud. Probá de nuevo.');
+      btn.disabled = false;
+      btn.textContent = 'Confirmar pedido';
     }
   });
+
+  function mostrarExito(datos, resultado){
+    document.getElementById('vistaWizard').hidden = true;
+    document.getElementById('vistaExito').hidden = false;
+    document.getElementById('exitoTitulo').textContent = `¡Gracias, ${datos.contacto.split(' ')[0]}!`;
+    document.getElementById('exitoPedidoId').textContent = resultado.id ? `#${String(resultado.id).padStart(6, '0')}` : '—';
+    document.getElementById('exitoTotal').textContent = ultimoCalculo ? formatoARS.format(ultimoCalculo.total) : '—';
+
+    const pedidoUrl = resultado.id ? `${window.location.origin}/pedido/${resultado.id}` : null;
+    const texto = encodeURIComponent(construirResumenTexto(datos, pedidoUrl));
+    document.getElementById('whatsappBtn').href = `https://wa.me/${WHATSAPP_NUMBER}?text=${texto}`;
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // ---------------------------------------------------------------- inicio
+  renderPiezas();
+  mostrarPaso(1);
+})();
 </script>
 
 </body>

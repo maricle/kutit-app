@@ -70,6 +70,12 @@ class MedidaMaterialIn(BaseModel):
     precio_manual: Optional[float] = None
 
 
+class DistribucionIn(BaseModel):
+    cortes: list[FilaCorte]
+    ancho_placa: int
+    largo_placa: int
+
+
 class MaterialManualIn(BaseModel):
     id: Optional[int] = None
     categoria: str = "material"

@@ -18,6 +18,7 @@ import security
 import vision_extract
 from models import (
     CancelarIn,
+    DistribucionIn,
     EtapaIn,
     FilaCorte,
     MaterialManualIn,
@@ -48,7 +49,10 @@ templates = Jinja2Templates(directory="templates")
 
 
 def sesion_activa(request: Request) -> bool:
-    return security.token_valido(request.cookies.get(security.SESSION_COOKIE_NAME))
+    # Login del panel desactivado a pedido, temporalmente (panel queda público).
+    # Para reactivarlo, volver a:
+    # return security.token_valido(request.cookies.get(security.SESSION_COOKIE_NAME))
+    return True
 
 
 def requerir_sesion(request: Request):
@@ -203,6 +207,20 @@ async def precios_servicios():
         elif medida and medida["precio_manual"] is not None:
             servicios[clave] = float(medida["precio_manual"])
     return servicios
+
+
+@app.post("/distribucion")
+async def calcular_distribucion_endpoint(datos: DistribucionIn):
+    cortes = [c.model_dump() for c in datos.cortes if not fila_vacia(c)]
+    if not cortes:
+        raise HTTPException(status_code=400, detail="Agregá al menos un corte")
+    if datos.ancho_placa <= 0 or datos.largo_placa <= 0:
+        raise HTTPException(status_code=400, detail="Medida de placa inválida")
+
+    resultado = calculos.calcular_distribucion(cortes, datos.ancho_placa, datos.largo_placa)
+    resultado["metros_corte"] = round(calculos.metros_corte(cortes), 2)
+    resultado["metros_canto"] = round(calculos.metros_canto(cortes), 2)
+    return resultado
 
 
 @app.get("/pedido/{solicitud_id}", response_class=HTMLResponse)
