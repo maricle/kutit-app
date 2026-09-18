@@ -175,6 +175,8 @@ async def listar_materiales():
         m["largo"] = medida["largo"] if medida else None
         if medida and medida["precio_manual"] is not None:
             m["precio"] = float(medida["precio_manual"])
+        if medida and medida["nombre"]:
+            m["nombre"] = medida["nombre"]
         visibles.append(m)
 
     for m in await db.listar_materiales_manuales():
@@ -284,13 +286,15 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
     ):
         medida = medidas.get(odoo_id)
         precio_manual = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
+        nombre_manual = medida["nombre"] if medida and medida["nombre"] else None
         items.append({
             "clave": f"odoo:{odoo_id}",
             "origen": "odoo",
             "categoria": "servicio",
             "odoo_id": odoo_id,
             "manual_id": None,
-            "nombre": nombre,
+            "nombre": nombre_manual or nombre,
+            "nombre_odoo": nombre,
             "precio": precio_manual if precio_manual is not None else precio_vivo,
             "precio_manual": precio_manual,
             "precio_odoo": precio_vivo,
@@ -302,13 +306,15 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
     for m in materiales_odoo:
         medida = medidas.get(m["id"])
         precio_manual = float(medida["precio_manual"]) if medida and medida["precio_manual"] is not None else None
+        nombre_manual = medida["nombre"] if medida and medida["nombre"] else None
         items.append({
             "clave": f"odoo:{m['id']}",
             "origen": "odoo",
             "categoria": "material",
             "odoo_id": m["id"],
             "manual_id": None,
-            "nombre": m["nombre"],
+            "nombre": nombre_manual or m["nombre"],
+            "nombre_odoo": m["nombre"],
             "precio": precio_manual if precio_manual is not None else m["precio"],
             "precio_manual": precio_manual,
             "precio_odoo": m["precio"],
@@ -325,6 +331,7 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
             "odoo_id": None,
             "manual_id": m["id"],
             "nombre": m["nombre"],
+            "nombre_odoo": None,
             "precio": float(m["precio"]) if m["precio"] is not None else None,
             "precio_manual": None,
             "precio_odoo": None,
