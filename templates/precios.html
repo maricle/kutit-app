@@ -42,7 +42,7 @@
         <thead>
           <tr>
             <th>Categoría</th><th>Nombre</th><th>Origen</th><th>Precio</th>
-            <th>Ancho (mm)</th><th>Largo (mm)</th><th>Estado</th><th>Acciones</th>
+            <th>Ancho (mm)</th><th>Largo (mm)</th><th>Veta</th><th>Estado</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -72,6 +72,11 @@
             <td data-order="{{ item.largo or 0 }}">
               {% if item.categoria == 'material' %}
               <input type="number" class="form-control form-control-sm p-largo" value="{{ item.largo or '' }}" min="0" style="width:90px">
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center" data-order="{{ 1 if item.tiene_veta else 0 }}">
+              {% if item.categoria == 'material' %}
+              <input type="checkbox" class="p-veta" {{ 'checked' if item.tiene_veta }} title="Tiene veta/dibujo a respetar">
               {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
             <td data-order="{{ 1 if item.activo else 0 }}">
@@ -143,7 +148,7 @@ const tabla = $('#tablaPrecios').DataTable({
   pageLength: 10,
   lengthMenu: [10, 25, 50, 100],
   order: [[0, 'asc'], [1, 'asc']],
-  columnDefs: [{ targets: 7, orderable: false }],
+  columnDefs: [{ targets: 8, orderable: false }],
   language: {
     search: 'Buscar:',
     lengthMenu: 'Mostrar _MENU_ por página',
@@ -159,7 +164,7 @@ document.getElementById('filtroCategoria').addEventListener('change', function()
   tabla.column(0).search(this.value).draw();
 });
 document.getElementById('filtroEstado').addEventListener('change', function(){
-  tabla.column(6).search(this.value).draw();
+  tabla.column(7).search(this.value).draw();
 });
 
 function mostrarMensaje(tipo, texto){
@@ -179,6 +184,7 @@ function leerFila(fila){
     precio: fila.querySelector('.p-precio').value,
     ancho: categoria === 'material' && fila.querySelector('.p-ancho') ? fila.querySelector('.p-ancho').value : null,
     largo: categoria === 'material' && fila.querySelector('.p-largo') ? fila.querySelector('.p-largo').value : null,
+    tieneVeta: categoria === 'material' && fila.querySelector('.p-veta') ? fila.querySelector('.p-veta').checked : false,
     activo: fila.querySelector('.p-estado-badge').textContent.trim() === 'Activo',
   };
 }
@@ -200,6 +206,7 @@ async function guardarFila(fila, { activoOverride } = {}){
         largo: datos.largo ? Number(datos.largo) : null,
         habilitado: activo,
         precio_manual: datos.precio === '' ? null : Number(datos.precio),
+        tiene_veta: datos.tieneVeta,
       }),
     });
   } else {
@@ -219,6 +226,7 @@ async function guardarFila(fila, { activoOverride } = {}){
         ancho: datos.ancho ? Number(datos.ancho) : null,
         largo: datos.largo ? Number(datos.largo) : null,
         habilitado: activo,
+        tiene_veta: datos.tieneVeta,
       }),
     });
   }

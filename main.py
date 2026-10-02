@@ -19,6 +19,7 @@ import security
 import vision_extract
 from models import (
     CancelarIn,
+    ConfiguracionMaquinaIn,
     DistribucionIn,
     EtapaIn,
     FilaCorte,
@@ -306,6 +307,7 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
             "precio_odoo": precio_vivo,
             "ancho": None,
             "largo": None,
+            "tiene_veta": None,
             "activo": bool(medida["habilitado"]) if medida else True,
         })
 
@@ -326,6 +328,7 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
             "precio_odoo": m["precio"],
             "ancho": medida["ancho"] if medida else None,
             "largo": medida["largo"] if medida else None,
+            "tiene_veta": bool(medida["tiene_veta"]) if medida else False,
             "activo": bool(medida["habilitado"]) if medida else True,
         })
 
@@ -343,6 +346,7 @@ async def _lista_precios() -> tuple[list[dict], str | None]:
             "precio_odoo": None,
             "ancho": m["ancho"],
             "largo": m["largo"],
+            "tiene_veta": bool(m["tiene_veta"]) if m["categoria"] == "material" else None,
             "activo": bool(m["habilitado"]),
         })
 
@@ -366,7 +370,8 @@ async def precios_page(request: Request):
 @app.post("/dashboard/precios/medidas", dependencies=[Depends(requerir_sesion)])
 async def guardar_medida_material_endpoint(datos: MedidaMaterialIn):
     await db.guardar_medida_material(
-        datos.odoo_id, datos.nombre, datos.ancho, datos.largo, datos.habilitado, datos.precio_manual
+        datos.odoo_id, datos.nombre, datos.ancho, datos.largo, datos.habilitado,
+        datos.precio_manual, datos.tiene_veta,
     )
     return {"ok": True}
 
@@ -380,7 +385,8 @@ async def eliminar_medida_material_endpoint(odoo_id: int):
 @app.post("/dashboard/precios/materiales-manuales", dependencies=[Depends(requerir_sesion)])
 async def guardar_material_manual_endpoint(datos: MaterialManualIn):
     material_id = await db.guardar_material_manual(
-        datos.id, datos.categoria, datos.nombre, datos.precio, datos.ancho, datos.largo, datos.habilitado
+        datos.id, datos.categoria, datos.nombre, datos.precio, datos.ancho, datos.largo,
+        datos.habilitado, datos.tiene_veta,
     )
     return {"ok": True, "id": material_id}
 
@@ -388,6 +394,24 @@ async def guardar_material_manual_endpoint(datos: MaterialManualIn):
 @app.delete("/dashboard/precios/materiales-manuales/{material_id}", dependencies=[Depends(requerir_sesion)])
 async def eliminar_material_manual_endpoint(material_id: int):
     await db.eliminar_material_manual(material_id)
+    return {"ok": True}
+
+
+@app.get("/dashboard/configuracion", response_class=HTMLResponse)
+async def configuracion_page(request: Request):
+    if not sesion_activa(request):
+        return templates.TemplateResponse(request, "login.html")
+    configuracion = await db.obtener_configuracion_maquina()
+    return templates.TemplateResponse(
+        request, "configuracion.html", {"configuracion": configuracion, "active_nav": "configuracion"}
+    )
+
+
+@app.post("/dashboard/configuracion", dependencies=[Depends(requerir_sesion)])
+async def guardar_configuracion_endpoint(datos: ConfiguracionMaquinaIn):
+    await db.guardar_configuracion_maquina(
+        datos.kerf_mm, datos.margen_mm, datos.modo_canto, datos.espesor_canto_default_mm, datos.canto_umbral_mm
+    )
     return {"ok": True}
 
 
@@ -459,19 +483,20 @@ async def crear_solicitud_staff(datos: SolicitudCorteIn):
     return {"ok": True, "id": solicitud_id}
 
 
-async def _medida_material_de_solicitud(solicitud: dict) -> tuple[int, int] | None:
-    """Ancho/largo (mm) de la placa elegida en la solicitud, si tiene una
-    medida configurada en el panel de precios. None si no aplica."""
+async def _medida_material_de_solicitud(solicitud: dict) -> tuple[int, int, bool] | None:
+    """Ancho/largo (mm) y si tiene veta, de la placa elegida en la
+    solicitud, si tiene una medida configurada en el panel de precios.
+    None si no aplica."""
     if not solicitud.get("con_material"):
         return None
     if solicitud.get("material_id"):
         medida = await db.obtener_medida_material(solicitud["material_id"])
         if medida and medida["ancho"] and medida["largo"]:
-            return medida["ancho"], medida["largo"]
+            return medida["ancho"], medida["largo"], bool(medida["tiene_veta"])
     elif solicitud.get("material_manual_id"):
         manual = await db.obtener_material_manual(solicitud["material_manual_id"])
         if manual and manual["ancho"] and manual["largo"]:
-            return manual["ancho"], manual["largo"]
+            return manual["ancho"], manual["largo"], bool(manual["tiene_veta"])
     return None
 
 
@@ -490,7 +515,7 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
     materiales_manuales = [m for m in await db.listar_materiales_manuales() if m["habilitado"]]
 
     medida = await _medida_material_de_solicitud(solicitud)
-    placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], *medida) if medida else None
+    placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], medida[0], medida[1]) if medida else None
 
     pedidos_anteriores = await db.listar_solicitudes_por_telefono(solicitud["telefono"], solicitud_id)
     for p in pedidos_anteriores:
@@ -604,11 +629,23 @@ async def _calcular_plano(solicitud_id: int) -> optimizador.Resultado:
             status_code=400,
             detail="Esta solicitud no tiene un material con medida configurada — no se puede calcular el plano.",
         )
-    ancho, largo = medida
+    ancho, largo, tiene_veta = medida
+    maquina = await db.obtener_configuracion_maquina()
+    espesor_canto = (
+        float(solicitud["espesor_canto_mm"])
+        if solicitud.get("espesor_canto_mm") is not None
+        else float(maquina["espesor_canto_default_mm"])
+    )
     try:
         return await asyncio.to_thread(
             optimizador.calcular_resultado,
             solicitud["cortes"], ancho, largo,
+            kerf_mm=float(maquina["kerf_mm"]),
+            margen_mm=float(maquina["margen_mm"]),
+            modo_canto=maquina["modo_canto"],
+            espesor_canto_mm=espesor_canto,
+            canto_umbral_mm=float(maquina["canto_umbral_mm"]),
+            tiene_veta=tiene_veta,
             numero_orden=str(solicitud_id), cliente=solicitud["contacto"],
             fecha=str(solicitud["creado_en"].date()) if solicitud.get("creado_en") else "-",
         )

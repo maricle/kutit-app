@@ -28,13 +28,7 @@ ODOO_PARTNER_CONSUMIDOR_FINAL_ID = int(os.environ.get("ODOO_PARTNER_CONSUMIDOR_F
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY") or None
 
-# Parámetros del optimizador de corte real (panel interno — ver kutit spec/
-# spec-optimizador-corte.md). Defaults razonables para arrancar, no una
-# confirmación del negocio: kerf es el default del propio CLI de Adrián,
-# modo_canto "ninguno" no cambia ninguna medida que el cliente ya ve.
-OPTIMIZADOR_KERF_MM = float(os.environ.get("OPTIMIZADOR_KERF_MM", "4"))
-OPTIMIZADOR_MARGEN_MM = float(os.environ.get("OPTIMIZADOR_MARGEN_MM", "0"))
-OPTIMIZADOR_MODO_PLACA = os.environ.get("OPTIMIZADOR_MODO_PLACA", "lisa")
-OPTIMIZADOR_MODO_CANTO = os.environ.get("OPTIMIZADOR_MODO_CANTO", "ninguno")
-OPTIMIZADOR_ESPESOR_CANTO_MM = float(os.environ.get("OPTIMIZADOR_ESPESOR_CANTO_MM", "0.45"))
-OPTIMIZADOR_CANTO_UMBRAL_MM = float(os.environ.get("OPTIMIZADOR_CANTO_UMBRAL_MM", "0"))
+# Los parámetros del optimizador de corte (kerf, margen, modo de canto,
+# espesor de canto, veta por material) ya no viven acá — son editables sin
+# redeploy desde /dashboard/configuracion y /dashboard/precios. Ver kutit
+# spec/spec-optimizador-corte.md.

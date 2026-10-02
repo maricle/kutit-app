@@ -8,7 +8,6 @@ from __future__ import annotations
 import io
 import zipfile
 
-import config
 from .adaptador import piezas_desde_cortes
 from .cantos import aplicar_modo_canto_a_todas
 from .dxf_export import generar_dxf_bytes_por_placa
@@ -18,34 +17,40 @@ from .modelos import Config as OptimizadorConfig, ModoCanto, ModoPlaca, Resultad
 from .pdf_export import generar_pdf_bytes
 
 
-def _config_desde_ajustes(ancho_placa: int, largo_placa: int, numero_orden: str, cliente: str, fecha: str) -> OptimizadorConfig:
-    return OptimizadorConfig(
-        placa_largo=float(largo_placa),
-        placa_ancho=float(ancho_placa),
-        kerf=config.OPTIMIZADOR_KERF_MM,
-        margen=config.OPTIMIZADOR_MARGEN_MM,
-        modo_placa=ModoPlaca(config.OPTIMIZADOR_MODO_PLACA),
-        modo_canto=ModoCanto(config.OPTIMIZADOR_MODO_CANTO),
-        espesor_canto=config.OPTIMIZADOR_ESPESOR_CANTO_MM,
-        canto_umbral=config.OPTIMIZADOR_CANTO_UMBRAL_MM,
-        numero_orden=numero_orden,
-        cliente=cliente,
-        fecha=fecha,
-    )
-
-
 def calcular_resultado(
     cortes: list[dict],
     ancho_placa: int,
     largo_placa: int,
+    kerf_mm: float,
+    margen_mm: float,
+    modo_canto: str,
+    espesor_canto_mm: float,
+    canto_umbral_mm: float,
+    tiene_veta: bool,
     numero_orden: str = "-",
     cliente: str = "-",
     fecha: str = "-",
 ) -> Resultado:
-    """Corre el nesting real (empaquetador guillotina de Kutit Adrian)
-    sobre los cortes dados. Lanza `optimizador.errores.OptimizadorError` (o
-    una subclase) si algo no es válido."""
-    cfg = _config_desde_ajustes(ancho_placa, largo_placa, numero_orden, cliente, fecha)
+    """Corre el nesting real (empaquetador guillotina de Kutit Adrian) sobre
+    los cortes dados. Todos los parámetros de máquina/canto/veta vienen
+    resueltos por el llamador (ver main.py: combina Configuración de
+    máquina + espesor de canto de la solicitud + veta del material elegido
+    — ver kutit spec/spec-optimizador-corte.md). Lanza
+    `optimizador.errores.OptimizadorError` (o una subclase) si algo no es
+    válido."""
+    cfg = OptimizadorConfig(
+        placa_largo=float(largo_placa),
+        placa_ancho=float(ancho_placa),
+        kerf=kerf_mm,
+        margen=margen_mm,
+        modo_placa=ModoPlaca.DIBUJO if tiene_veta else ModoPlaca.LISA,
+        modo_canto=ModoCanto(modo_canto),
+        espesor_canto=espesor_canto_mm,
+        canto_umbral=canto_umbral_mm,
+        numero_orden=numero_orden,
+        cliente=cliente,
+        fecha=fecha,
+    )
     piezas = piezas_desde_cortes(cortes, cfg.espesor_canto)
     aplicar_modo_canto_a_todas(piezas, cfg.modo_canto, cfg.canto_umbral)
     return optimizar(piezas, cfg)

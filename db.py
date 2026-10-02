@@ -1,8 +1,19 @@
+from decimal import Decimal
+
 import asyncpg
 
 import config
 
 _pool: asyncpg.Pool | None = None
+
+
+def _decimal_limpio(valor: float) -> Decimal:
+    """Convierte un float de JS a Decimal pasando por su representación en
+    texto (`str(round(valor, 2))`), no por su valor binario exacto —
+    `Decimal(0.45)` da 0.450000000000000011102230246251565404236316680908203125
+    porque 0.45 no es representable exacto en binario; así queda limpio
+    para guardarlo en una columna NUMERIC."""
+    return Decimal(str(round(valor, 2)))
 
 SCHEMA_SOLICITUDES = """
 CREATE TABLE IF NOT EXISTS solicitudes (
@@ -60,6 +71,18 @@ CREATE TABLE IF NOT EXISTS materiales_manuales (
 );
 """
 
+SCHEMA_CONFIGURACION_MAQUINA = """
+CREATE TABLE IF NOT EXISTS configuracion_maquina (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    kerf_mm NUMERIC NOT NULL DEFAULT 4,
+    margen_mm NUMERIC NOT NULL DEFAULT 0,
+    modo_canto TEXT NOT NULL DEFAULT 'agregar',
+    espesor_canto_default_mm NUMERIC NOT NULL DEFAULT 0.45,
+    canto_umbral_mm NUMERIC NOT NULL DEFAULT 0,
+    CONSTRAINT configuracion_maquina_una_fila CHECK (id = 1)
+);
+"""
+
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
@@ -75,12 +98,14 @@ async def init_db():
         await con.execute(SCHEMA_LINEAS)
         await con.execute(SCHEMA_MEDIDAS_MATERIAL)
         await con.execute(SCHEMA_MATERIALES_MANUALES)
+        await con.execute(SCHEMA_CONFIGURACION_MAQUINA)
         for columna in (
             "odoo_pedido_id INTEGER",
             "odoo_pedido_nombre TEXT",
             "con_material INTEGER NOT NULL DEFAULT 1",
             "material_id INTEGER",
             "material_manual_id INTEGER",
+            "espesor_canto_mm NUMERIC",
         ):
             await con.execute(f"ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS {columna}")
         await con.execute(
@@ -90,7 +115,16 @@ async def init_db():
             "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS precio_manual NUMERIC"
         )
         await con.execute(
+            "ALTER TABLE medidas_material ADD COLUMN IF NOT EXISTS tiene_veta INTEGER NOT NULL DEFAULT 0"
+        )
+        await con.execute(
             "ALTER TABLE materiales_manuales ADD COLUMN IF NOT EXISTS categoria TEXT NOT NULL DEFAULT 'material'"
+        )
+        await con.execute(
+            "ALTER TABLE materiales_manuales ADD COLUMN IF NOT EXISTS tiene_veta INTEGER NOT NULL DEFAULT 0"
+        )
+        await con.execute(
+            "INSERT INTO configuracion_maquina (id) VALUES (1) ON CONFLICT (id) DO NOTHING"
         )
 
 
@@ -159,10 +193,10 @@ async def actualizar_solicitud(solicitud_id: int, datos):
     pool = await get_pool()
     async with pool.acquire() as con, con.transaction():
         campos, valores = [], []
-        for campo in ("contacto", "telefono", "email", "fecha"):
+        for campo in ("contacto", "telefono", "email", "fecha", "espesor_canto_mm"):
             valor = getattr(datos, campo, None)
             if valor is not None:
-                valores.append(valor)
+                valores.append(_decimal_limpio(valor) if campo == "espesor_canto_mm" else valor)
                 campos.append(f"{campo} = ${len(valores)}")
         if datos.con_material is not None:
             # material/material_id/material_manual_id sólo tienen sentido junto con
@@ -255,13 +289,15 @@ async def guardar_medida_material(
     largo: int | None,
     habilitado: bool,
     precio_manual: float | None = None,
+    tiene_veta: bool = False,
 ):
     pool = await get_pool()
     await pool.execute(
-        """INSERT INTO medidas_material (odoo_id, nombre, ancho, largo, habilitado, precio_manual)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (odoo_id) DO UPDATE SET nombre = $2, ancho = $3, largo = $4, habilitado = $5, precio_manual = $6""",
-        odoo_id, nombre, ancho, largo, int(habilitado), precio_manual,
+        """INSERT INTO medidas_material (odoo_id, nombre, ancho, largo, habilitado, precio_manual, tiene_veta)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (odoo_id) DO UPDATE SET nombre = $2, ancho = $3, largo = $4, habilitado = $5, precio_manual = $6, tiene_veta = $7""",
+        odoo_id, nombre, ancho, largo, int(habilitado),
+        _decimal_limpio(precio_manual) if precio_manual is not None else None, int(tiene_veta),
     )
 
 
@@ -285,19 +321,21 @@ async def guardar_material_manual(
     ancho: int | None,
     largo: int | None,
     habilitado: bool,
+    tiene_veta: bool = False,
 ) -> int:
     pool = await get_pool()
+    precio_limpio = _decimal_limpio(precio)
     if material_id is None:
         return await pool.fetchval(
-            """INSERT INTO materiales_manuales (categoria, nombre, precio, ancho, largo, habilitado)
-               VALUES ($1, $2, $3, $4, $5, $6) RETURNING id""",
-            categoria, nombre, precio, ancho, largo, int(habilitado),
+            """INSERT INTO materiales_manuales (categoria, nombre, precio, ancho, largo, habilitado, tiene_veta)
+               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id""",
+            categoria, nombre, precio_limpio, ancho, largo, int(habilitado), int(tiene_veta),
         )
     await pool.execute(
         """UPDATE materiales_manuales
-           SET categoria = $2, nombre = $3, precio = $4, ancho = $5, largo = $6, habilitado = $7
+           SET categoria = $2, nombre = $3, precio = $4, ancho = $5, largo = $6, habilitado = $7, tiene_veta = $8
            WHERE id = $1""",
-        material_id, categoria, nombre, precio, ancho, largo, int(habilitado),
+        material_id, categoria, nombre, precio_limpio, ancho, largo, int(habilitado), int(tiene_veta),
     )
     return material_id
 
@@ -305,3 +343,22 @@ async def guardar_material_manual(
 async def eliminar_material_manual(material_id: int):
     pool = await get_pool()
     await pool.execute("DELETE FROM materiales_manuales WHERE id = $1", material_id)
+
+
+async def obtener_configuracion_maquina() -> dict:
+    pool = await get_pool()
+    fila = await pool.fetchrow("SELECT * FROM configuracion_maquina WHERE id = 1")
+    return dict(fila)
+
+
+async def guardar_configuracion_maquina(
+    kerf_mm: float, margen_mm: float, modo_canto: str, espesor_canto_default_mm: float, canto_umbral_mm: float,
+):
+    pool = await get_pool()
+    await pool.execute(
+        """UPDATE configuracion_maquina
+           SET kerf_mm = $1, margen_mm = $2, modo_canto = $3, espesor_canto_default_mm = $4, canto_umbral_mm = $5
+           WHERE id = 1""",
+        _decimal_limpio(kerf_mm), _decimal_limpio(margen_mm), modo_canto,
+        _decimal_limpio(espesor_canto_default_mm), _decimal_limpio(canto_umbral_mm),
+    )

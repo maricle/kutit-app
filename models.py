@@ -44,6 +44,7 @@ class SolicitudCorteUpdate(BaseModel):
     material: Optional[str] = None
     material_id: Optional[int] = None
     material_manual_id: Optional[int] = None
+    espesor_canto_mm: Optional[float] = None
     cortes: Optional[list[FilaCorte]] = None
 
 
@@ -68,6 +69,7 @@ class MedidaMaterialIn(BaseModel):
     largo: Optional[int] = None
     habilitado: bool = True
     precio_manual: Optional[float] = None
+    tiene_veta: bool = False
 
 
 class DistribucionIn(BaseModel):
@@ -84,10 +86,26 @@ class MaterialManualIn(BaseModel):
     ancho: Optional[int] = None
     largo: Optional[int] = None
     habilitado: bool = True
+    tiene_veta: bool = False
 
     @field_validator("categoria")
     @classmethod
     def categoria_valida(cls, v):
         if v not in ("material", "servicio"):
             raise ValueError("categoria debe ser 'material' o 'servicio'")
+        return v
+
+
+class ConfiguracionMaquinaIn(BaseModel):
+    kerf_mm: float
+    margen_mm: float = 0
+    modo_canto: str = "agregar"
+    espesor_canto_default_mm: float = 0.45
+    canto_umbral_mm: float = 0
+
+    @field_validator("modo_canto")
+    @classmethod
+    def modo_canto_valido(cls, v):
+        if v not in ("ninguno", "descontar", "agregar"):
+            raise ValueError("modo_canto debe ser 'ninguno', 'descontar' o 'agregar'")
         return v

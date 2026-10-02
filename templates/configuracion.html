@@ -1,0 +1,83 @@
+{% extends "_base_admin.html" %}
+{% block title %}Configuración — Kutit{% endblock %}
+{% block page_heading %}Configuración de máquina{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Parámetros del optimizador de corte</h6></div>
+  <div class="card-body">
+    <p class="text-muted small">
+      Estos valores los usa el "Plano de corte" del detalle de cada solicitud (DXF/PDF/etiquetas) para calcular la
+      distribución real en la placa. El espesor de canto acá es el <strong>default</strong> — cada solicitud puede
+      cargar el suyo si usa uno distinto (ver su detalle). La veta (quién puede rotar) se configura por material en
+      <a href="/dashboard/precios">Precios y materiales</a>, no acá.
+    </p>
+    <form id="formConfiguracion">
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="kerfMm">Kerf — espesor de corte (mm)</label>
+          <input type="number" step="0.1" min="0" class="form-control" id="kerfMm" value="{{ configuracion.kerf_mm }}">
+          <small class="form-text text-muted">Lo que pierde el material en cada pasada de sierra/fresa.</small>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="margenMm">Margen / refilado (mm)</label>
+          <input type="number" step="0.1" min="0" class="form-control" id="margenMm" value="{{ configuracion.margen_mm }}">
+          <small class="form-text text-muted">Borde perimetral de la placa que no se puede usar.</small>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="modoCanto">Modo de canto</label>
+          <select class="form-control" id="modoCanto">
+            <option value="ninguno" {{ 'selected' if configuracion.modo_canto == 'ninguno' }}>Ninguno (no ajusta medidas)</option>
+            <option value="agregar" {{ 'selected' if configuracion.modo_canto == 'agregar' }}>Agregar (la medida cargada es la de corte)</option>
+            <option value="descontar" {{ 'selected' if configuracion.modo_canto == 'descontar' }}>Descontar (la medida cargada es la final)</option>
+          </select>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="espesorCantoDefault">Espesor de canto por defecto (mm)</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="espesorCantoDefault" value="{{ configuracion.espesor_canto_default_mm }}">
+          <small class="form-text text-muted">Se usa si la solicitud no tiene uno cargado. Común: 0.45 o 2.</small>
+        </div>
+        <div class="form-group col-md-4">
+          <label for="cantoUmbral">Umbral de canto (mm)</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="cantoUmbral" value="{{ configuracion.canto_umbral_mm }}">
+          <small class="form-text text-muted">Si está en 0, ajusta la medida por cualquier canto marcado.</small>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="guardarConfiguracion()">Guardar</button>
+      <div id="msgBox" class="d-none mt-3"></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function mostrarMensaje(tipo, texto){
+  const box = document.getElementById('msgBox');
+  if (!texto){ box.className = 'd-none mt-3'; return; }
+  box.className = 'alert mt-3 ' + (tipo === 'ok' ? 'alert-success' : 'alert-danger');
+  box.textContent = texto;
+}
+
+async function guardarConfiguracion(){
+  const datos = {
+    kerf_mm: Number(document.getElementById('kerfMm').value || 0),
+    margen_mm: Number(document.getElementById('margenMm').value || 0),
+    modo_canto: document.getElementById('modoCanto').value,
+    espesor_canto_default_mm: Number(document.getElementById('espesorCantoDefault').value || 0),
+    canto_umbral_mm: Number(document.getElementById('cantoUmbral').value || 0),
+  };
+  const res = await fetch('/dashboard/configuracion', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(datos),
+  });
+  if (!res.ok){
+    const err = await res.json().catch(() => ({}));
+    mostrarMensaje('err', err.detail ? JSON.stringify(err.detail) : 'No se pudo guardar.');
+    return;
+  }
+  mostrarMensaje('ok', 'Configuración guardada.');
+}
+</script>
+{% endblock %}
