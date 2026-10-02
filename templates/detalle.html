@@ -347,58 +347,6 @@ async function cargarDesdeFoto(input){
   }
 }
 
-function crearSvgPlaca(placa){
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${placa.ancho} ${placa.largo}`);
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  svg.style.width = '100%';
-  svg.style.display = 'block';
-  svg.style.maxHeight = '360px';
-
-  const fondo = document.createElementNS(NS, 'rect');
-  fondo.setAttribute('x', 0); fondo.setAttribute('y', 0);
-  fondo.setAttribute('width', placa.ancho); fondo.setAttribute('height', placa.largo);
-  fondo.setAttribute('fill', '#eceae6');
-  svg.appendChild(fondo);
-
-  const gap = Math.max(4, Math.round(Math.min(placa.ancho, placa.largo) * 0.004));
-  placa.piezas.forEach(p => {
-    const rect = document.createElementNS(NS, 'rect');
-    rect.setAttribute('x', p.x + gap / 2);
-    rect.setAttribute('y', p.y + gap / 2);
-    rect.setAttribute('width', Math.max(0, p.ancho - gap));
-    rect.setAttribute('height', Math.max(0, p.alto - gap));
-    rect.setAttribute('fill', '#fffdf3');
-    rect.setAttribute('stroke', '#999');
-    rect.setAttribute('stroke-width', Math.max(1, Math.min(placa.ancho, placa.largo) * 0.002));
-    svg.appendChild(rect);
-
-    if (p.ancho * p.alto >= 26000){
-      const cx = p.x + p.ancho / 2, cy = p.y + p.alto / 2;
-      const escala = Math.min(placa.ancho, placa.largo);
-      const t1 = document.createElementNS(NS, 'text');
-      t1.setAttribute('x', cx); t1.setAttribute('y', cy - escala * 0.005);
-      t1.setAttribute('text-anchor', 'middle');
-      t1.setAttribute('font-weight', '700');
-      t1.setAttribute('font-size', escala * 0.024);
-      t1.setAttribute('fill', '#111');
-      t1.textContent = p.etiqueta;
-      svg.appendChild(t1);
-
-      const t2 = document.createElementNS(NS, 'text');
-      t2.setAttribute('x', cx); t2.setAttribute('y', cy + escala * 0.026);
-      t2.setAttribute('text-anchor', 'middle');
-      t2.setAttribute('font-size', escala * 0.02);
-      t2.setAttribute('fill', '#555');
-      t2.textContent = `${p.alto} × ${p.ancho}`;
-      svg.appendChild(t2);
-    }
-  });
-
-  return svg;
-}
-
 function mostrarMensajePlano(tipo, texto){
   const box = document.getElementById('planoMsg');
   if (!texto){ box.className = 'd-none'; return; }
@@ -431,11 +379,10 @@ async function calcularPlano(id){
     data.placas.forEach((placa, i) => {
       const col = document.createElement('div');
       col.className = 'col-md-6 mb-3';
-      col.innerHTML = `<div class="small text-muted mb-1">Placa ${i + 1} de ${data.num_placas} — ${placa.ancho} × ${placa.largo} mm — ${placa.piezas.length} piezas, ${placa.aprovechamiento}% aprovechamiento</div>`;
-      const wrap = document.createElement('div');
-      wrap.style.border = '1px solid #ddd';
-      wrap.appendChild(crearSvgPlaca(placa));
-      col.appendChild(wrap);
+      col.innerHTML = `
+        <div class="small text-muted mb-1">Placa ${i + 1} de ${data.num_placas} — ${placa.ancho} × ${placa.largo} mm — ${placa.piezas} piezas, ${placa.aprovechamiento}% aprovechamiento</div>
+        <img src="data:image/png;base64,${placa.imagen_base64}" style="width:100%;border:1px solid #ddd;display:block;">
+      `;
       cont.appendChild(col);
     });
 

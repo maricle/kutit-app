@@ -8,6 +8,9 @@ from __future__ import annotations
 import io
 import zipfile
 
+import base64
+
+from . import colores
 from .adaptador import piezas_desde_cortes
 from .cantos import aplicar_modo_canto_a_todas
 from .dxf_export import generar_dxf_bytes_por_placa
@@ -15,6 +18,7 @@ from .empaquetador import optimizar
 from .etiquetas_export import generar_etiquetas_bytes
 from .modelos import Config as OptimizadorConfig, ModoCanto, ModoPlaca, Resultado
 from .pdf_export import generar_pdf_bytes
+from .visualizacion import dibujar_placa
 
 
 def calcular_resultado(
@@ -56,28 +60,43 @@ def calcular_resultado(
     return optimizar(piezas, cfg)
 
 
+def _preview_png_base64(placa, resultado: Resultado, colores_grupo: dict) -> str:
+    """Dibuja una placa con matplotlib (mismo código que usa el PDF: color
+    por grupo de tamaño, cantos de color, sobrante rayado) y la devuelve
+    como PNG en base64, lista para un <img src="data:image/png;base64,...">."""
+    import matplotlib.pyplot as plt
+
+    ancho_fig = 9.0
+    alto_fig = max(3.0, ancho_fig * (placa.ancho / placa.largo))
+    fig, ax = plt.subplots(figsize=(ancho_fig, alto_fig))
+    dibujar_placa(ax, placa, resultado, colores_grupo)
+    fig.tight_layout()
+
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png", dpi=130, facecolor="white")
+    plt.close(fig)
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def resultado_a_resumen(resultado: Resultado) -> dict:
-    """Convierte un Resultado al mismo formato JSON que ya devuelve
-    POST /distribucion (ver spec del formulario público), para poder
-    reusar el mismo código de dibujo SVG en el panel interno."""
+    """Convierte un Resultado a JSON para el panel interno: los datos
+    numéricos de cada placa más una vista previa PNG ya coloreada por
+    grupo de tamaño (ver _preview_png_base64) — no un dibujo aparte en el
+    frontend, para no duplicar la lógica de colores/leyenda que ya usan el
+    PDF y el DXF."""
     from .resumen import metros_lineales_canto, metros_lineales_corte
+
+    colores_grupo = colores.asignar_colores_grupo(resultado)
 
     placas = []
     for placa in resultado.placas:
         placas.append({
             "ancho": placa.ancho,
             "largo": placa.largo,
-            "piezas": [
-                {
-                    "etiqueta": pc.pieza.descripcion,
-                    "x": pc.x, "y": pc.y,
-                    "ancho": pc.ancho_x, "alto": pc.alto_y,
-                    "rotada": pc.rotada,
-                }
-                for pc in placa.piezas
-            ],
+            "piezas": len(placa.piezas),
             "aprovechamiento": round(placa.aprovechamiento, 1),
             "sobrante": round(100 - placa.aprovechamiento, 1),
+            "imagen_base64": _preview_png_base64(placa, resultado, colores_grupo),
         })
 
     return {
