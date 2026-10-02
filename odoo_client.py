@@ -25,6 +25,29 @@ def _llamar(models, uid, modelo, metodo, *args, **kwargs):
     return models.execute_kw(config.ODOO_DB, uid, config.ODOO_API_KEY, modelo, metodo, list(args), kwargs)
 
 
+def _buscar_o_crear_partner(models, uid, solicitud: dict) -> int:
+    """Identifica al cliente por teléfono: usa el res.partner existente con
+    ese teléfono si lo encuentra, o crea uno nuevo. Así Odoo acumula el
+    historial real de cada cliente en vez de agrupar todo bajo un partner
+    genérico de "Consumidor final"."""
+    telefono = (solicitud.get("telefono") or "").strip()
+    if telefono:
+        encontrados = _llamar(
+            models, uid, "res.partner", "search", [["phone", "=", telefono]], limit=1
+        )
+        if encontrados:
+            return encontrados[0]
+
+    return _llamar(
+        models, uid, "res.partner", "create",
+        {
+            "name": solicitud.get("contacto") or telefono or "Cliente web",
+            "phone": telefono or False,
+            "email": solicitud.get("email") or False,
+        },
+    )
+
+
 def _describir_cortes(cortes):
     lineas = []
     for c in cortes:
@@ -123,10 +146,12 @@ def crear_presupuesto(solicitud: dict) -> dict:
                     "name": solicitud.get("material") or "Placa",
                 }))
 
+    partner_id = _buscar_o_crear_partner(models, uid, solicitud)
+
     pedido_id = _llamar(
         models, uid, "sale.order", "create",
         {
-            "partner_id": config.ODOO_PARTNER_CONSUMIDOR_FINAL_ID,
+            "partner_id": partner_id,
             "x_studio_titulo": f"{solicitud['contacto']} - {solicitud['telefono']}",
             "order_line": lineas_pedido,
         },

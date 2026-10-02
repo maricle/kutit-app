@@ -14,6 +14,7 @@ import calculos
 import config
 import db
 import odoo_client
+import optimizador
 import security
 import vision_extract
 from models import (
@@ -225,6 +226,11 @@ async def calcular_distribucion_endpoint(datos: DistribucionIn):
     return resultado
 
 
+@app.post("/extraer-piezas")
+async def extraer_piezas_publico_endpoint(imagen: UploadFile = File(...)):
+    return await _extraer_piezas_de_imagen(imagen)
+
+
 @app.get("/pedido/{solicitud_id}", response_class=HTMLResponse)
 async def ver_pedido(request: Request, solicitud_id: int):
     solicitud = await db.obtener_solicitud(solicitud_id)
@@ -385,8 +391,7 @@ async def eliminar_material_manual_endpoint(material_id: int):
     return {"ok": True}
 
 
-@app.post("/dashboard/extraer-piezas", dependencies=[Depends(requerir_sesion)])
-async def extraer_piezas_endpoint(imagen: UploadFile = File(...)):
+async def _extraer_piezas_de_imagen(imagen: UploadFile) -> dict:
     contenido = await imagen.read()
     if len(contenido) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="La imagen es demasiado grande (máx 10 MB)")
@@ -397,6 +402,11 @@ async def extraer_piezas_endpoint(imagen: UploadFile = File(...)):
     except vision_extract.ExtraccionError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     return {"piezas": piezas}
+
+
+@app.post("/dashboard/extraer-piezas", dependencies=[Depends(requerir_sesion)])
+async def extraer_piezas_endpoint(imagen: UploadFile = File(...)):
+    return await _extraer_piezas_de_imagen(imagen)
 
 
 @app.post("/dashboard/login")
@@ -449,6 +459,22 @@ async def crear_solicitud_staff(datos: SolicitudCorteIn):
     return {"ok": True, "id": solicitud_id}
 
 
+async def _medida_material_de_solicitud(solicitud: dict) -> tuple[int, int] | None:
+    """Ancho/largo (mm) de la placa elegida en la solicitud, si tiene una
+    medida configurada en el panel de precios. None si no aplica."""
+    if not solicitud.get("con_material"):
+        return None
+    if solicitud.get("material_id"):
+        medida = await db.obtener_medida_material(solicitud["material_id"])
+        if medida and medida["ancho"] and medida["largo"]:
+            return medida["ancho"], medida["largo"]
+    elif solicitud.get("material_manual_id"):
+        manual = await db.obtener_material_manual(solicitud["material_manual_id"])
+        if manual and manual["ancho"] and manual["largo"]:
+            return manual["ancho"], manual["largo"]
+    return None
+
+
 @app.get("/dashboard/solicitudes/{solicitud_id}", response_class=HTMLResponse)
 async def editar_solicitud_page(request: Request, solicitud_id: int):
     if not sesion_activa(request):
@@ -463,19 +489,12 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
         materiales = [{"id": None, "nombre": "MDF"}, {"id": None, "nombre": "Acrilico"}]
     materiales_manuales = [m for m in await db.listar_materiales_manuales() if m["habilitado"]]
 
-    placas_necesarias = None
-    if solicitud.get("con_material"):
-        ancho = largo = None
-        if solicitud.get("material_id"):
-            medida = await db.obtener_medida_material(solicitud["material_id"])
-            if medida:
-                ancho, largo = medida["ancho"], medida["largo"]
-        elif solicitud.get("material_manual_id"):
-            manual = await db.obtener_material_manual(solicitud["material_manual_id"])
-            if manual:
-                ancho, largo = manual["ancho"], manual["largo"]
-        if ancho and largo:
-            placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], ancho, largo)
+    medida = await _medida_material_de_solicitud(solicitud)
+    placas_necesarias = calculos.cantidad_placas(solicitud["cortes"], *medida) if medida else None
+
+    pedidos_anteriores = await db.listar_solicitudes_por_telefono(solicitud["telefono"], solicitud_id)
+    for p in pedidos_anteriores:
+        p["estado_label"] = ESTADOS_LABELS.get(p["estado"], p["estado"])
 
     return templates.TemplateResponse(
         request,
@@ -485,6 +504,8 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
             "materiales": materiales,
             "materiales_manuales": materiales_manuales,
             "placas_necesarias": placas_necesarias,
+            "tiene_medida_material": medida is not None,
+            "pedidos_anteriores": pedidos_anteriores,
             "estado_label": ESTADOS_LABELS.get(solicitud["estado"], solicitud["estado"]),
             "etapa_label": ETAPAS_LABELS.get(solicitud["etapa_produccion"]),
             "active_nav": "panel",
@@ -571,3 +592,63 @@ async def enviar_a_odoo(solicitud_id: int):
         raise HTTPException(status_code=502, detail=str(exc))
     await db.guardar_odoo_pedido(solicitud_id, resultado["odoo_pedido_id"], resultado["odoo_pedido_nombre"])
     return {"ok": True, **resultado}
+
+
+# ---------------------------------------------------------------- plano de corte (panel interno)
+
+async def _calcular_plano(solicitud_id: int) -> optimizador.Resultado:
+    solicitud = await obtener_o_404(solicitud_id)
+    medida = await _medida_material_de_solicitud(solicitud)
+    if not medida:
+        raise HTTPException(
+            status_code=400,
+            detail="Esta solicitud no tiene un material con medida configurada — no se puede calcular el plano.",
+        )
+    ancho, largo = medida
+    try:
+        return await asyncio.to_thread(
+            optimizador.calcular_resultado,
+            solicitud["cortes"], ancho, largo,
+            numero_orden=str(solicitud_id), cliente=solicitud["contacto"],
+            fecha=str(solicitud["creado_en"].date()) if solicitud.get("creado_en") else "-",
+        )
+    except optimizador.OptimizadorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/dashboard/solicitudes/{solicitud_id}/plano", dependencies=[Depends(requerir_sesion)])
+async def calcular_plano_endpoint(solicitud_id: int):
+    resultado = await _calcular_plano(solicitud_id)
+    return optimizador.resultado_a_resumen(resultado)
+
+
+@app.get("/dashboard/solicitudes/{solicitud_id}/plano/dxf", dependencies=[Depends(requerir_sesion)])
+async def plano_dxf_endpoint(solicitud_id: int):
+    resultado = await _calcular_plano(solicitud_id)
+    contenido = await asyncio.to_thread(optimizador.generar_dxf_zip, resultado)
+    return Response(
+        content=contenido, media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="solicitud-{solicitud_id}-dxf.zip"'},
+    )
+
+
+@app.get("/dashboard/solicitudes/{solicitud_id}/plano/pdf", dependencies=[Depends(requerir_sesion)])
+async def plano_pdf_endpoint(solicitud_id: int):
+    resultado = await _calcular_plano(solicitud_id)
+    contenido = await asyncio.to_thread(optimizador.generar_pdf, resultado)
+    return Response(
+        content=contenido, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="solicitud-{solicitud_id}-orden-de-corte.pdf"'},
+    )
+
+
+@app.get("/dashboard/solicitudes/{solicitud_id}/plano/etiquetas", dependencies=[Depends(requerir_sesion)])
+async def plano_etiquetas_endpoint(solicitud_id: int):
+    resultado = await _calcular_plano(solicitud_id)
+    contenido = await asyncio.to_thread(optimizador.generar_etiquetas_pdf, resultado)
+    if contenido is None:
+        raise HTTPException(status_code=404, detail="No hay piezas colocadas para generar etiquetas")
+    return Response(
+        content=contenido, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="solicitud-{solicitud_id}-etiquetas.pdf"'},
+    )

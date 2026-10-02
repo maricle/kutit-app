@@ -15,6 +15,26 @@
 <div class="alert alert-warning">Esta solicitud está <strong>terminada</strong> y ya no se puede editar.</div>
 {% endif %}
 
+{% if pedidos_anteriores %}
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Pedidos anteriores de este cliente</h6></div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <tbody>
+        {% for p in pedidos_anteriores %}
+        <tr>
+          <td class="pl-3">#{{ p.id }}</td>
+          <td>{{ p.creado_en.strftime('%d/%m/%Y') if p.creado_en else '' }}</td>
+          <td>{{ p.estado_label }}</td>
+          <td class="text-right pr-3"><a href="/dashboard/solicitudes/{{ p.id }}">Ver</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="card shadow mb-4">
   <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Datos y material</h6></div>
   <div class="card-body">
@@ -137,9 +157,26 @@
     {% if solicitud.con_material and placas_necesarias is none %}
     <p class="text-muted small mb-0">Cargá el ancho/largo de esta placa en el panel de precios para calcular cuántas planchas hacen falta.</p>
     {% endif %}
-    <p class="text-muted small mb-0">Próximamente: reordenamiento visual de piezas sobre la placa (nesting).</p>
   </div>
 </div>
+
+{% if tiene_medida_material %}
+<div class="card shadow mb-4">
+  <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Plano de corte</h6></div>
+  <div class="card-body">
+    <button type="button" class="btn btn-primary btn-sm mb-2" id="btnCalcularPlano" onclick="calcularPlano({{ solicitud.id }})">Calcular plano de corte</button>
+    <div class="btn-group btn-group-sm mb-2 ml-2" id="descargasPlano" style="display:none">
+      <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/dxf">Descargar DXF</a>
+      <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/pdf">Descargar PDF</a>
+      <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/etiquetas">Descargar etiquetas</a>
+    </div>
+    <p class="text-muted small">Corre el optimizador real (corte guillotina, kerf, canto) — puede dar una distribución o un conteo de placas distinto al estimado de arriba, que es solo por área.</p>
+    <div id="planoMsg" class="d-none"></div>
+    <div id="planoResumen"></div>
+    <div id="planoPlacas" class="row"></div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -299,6 +336,107 @@ async function cargarDesdeFoto(input){
     btn.disabled = false;
     btn.textContent = 'Cargar piezas desde foto';
     input.value = '';
+  }
+}
+
+function crearSvgPlaca(placa){
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${placa.ancho} ${placa.largo}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  svg.style.width = '100%';
+  svg.style.display = 'block';
+  svg.style.maxHeight = '360px';
+
+  const fondo = document.createElementNS(NS, 'rect');
+  fondo.setAttribute('x', 0); fondo.setAttribute('y', 0);
+  fondo.setAttribute('width', placa.ancho); fondo.setAttribute('height', placa.largo);
+  fondo.setAttribute('fill', '#eceae6');
+  svg.appendChild(fondo);
+
+  const gap = Math.max(4, Math.round(Math.min(placa.ancho, placa.largo) * 0.004));
+  placa.piezas.forEach(p => {
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', p.x + gap / 2);
+    rect.setAttribute('y', p.y + gap / 2);
+    rect.setAttribute('width', Math.max(0, p.ancho - gap));
+    rect.setAttribute('height', Math.max(0, p.alto - gap));
+    rect.setAttribute('fill', '#fffdf3');
+    rect.setAttribute('stroke', '#999');
+    rect.setAttribute('stroke-width', Math.max(1, Math.min(placa.ancho, placa.largo) * 0.002));
+    svg.appendChild(rect);
+
+    if (p.ancho * p.alto >= 26000){
+      const cx = p.x + p.ancho / 2, cy = p.y + p.alto / 2;
+      const escala = Math.min(placa.ancho, placa.largo);
+      const t1 = document.createElementNS(NS, 'text');
+      t1.setAttribute('x', cx); t1.setAttribute('y', cy - escala * 0.005);
+      t1.setAttribute('text-anchor', 'middle');
+      t1.setAttribute('font-weight', '700');
+      t1.setAttribute('font-size', escala * 0.024);
+      t1.setAttribute('fill', '#111');
+      t1.textContent = p.etiqueta;
+      svg.appendChild(t1);
+
+      const t2 = document.createElementNS(NS, 'text');
+      t2.setAttribute('x', cx); t2.setAttribute('y', cy + escala * 0.026);
+      t2.setAttribute('text-anchor', 'middle');
+      t2.setAttribute('font-size', escala * 0.02);
+      t2.setAttribute('fill', '#555');
+      t2.textContent = `${p.alto} × ${p.ancho}`;
+      svg.appendChild(t2);
+    }
+  });
+
+  return svg;
+}
+
+function mostrarMensajePlano(tipo, texto){
+  const box = document.getElementById('planoMsg');
+  if (!texto){ box.className = 'd-none'; return; }
+  box.className = 'alert mt-2 ' + (tipo === 'ok' ? 'alert-success' : 'alert-danger');
+  box.textContent = texto;
+}
+
+async function calcularPlano(id){
+  const btn = document.getElementById('btnCalcularPlano');
+  btn.disabled = true;
+  btn.textContent = 'Calculando...';
+  mostrarMensajePlano('', '');
+  document.getElementById('planoPlacas').innerHTML = '';
+  document.getElementById('planoResumen').innerHTML = '';
+  document.getElementById('descargasPlano').style.display = 'none';
+
+  try{
+    const res = await fetch(`/dashboard/solicitudes/${id}/plano`, {method: 'POST'});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'No se pudo calcular el plano');
+
+    document.getElementById('planoResumen').innerHTML = `
+      <p class="mb-2"><strong>${data.num_placas}</strong> placa(s) ·
+      <strong>${data.total_piezas}</strong> piezas ·
+      aprovechamiento <strong>${data.aprovechamiento}%</strong> ·
+      ${data.metros_corte} m de corte · ${data.metros_canto} m de canto</p>
+    `;
+
+    const cont = document.getElementById('planoPlacas');
+    data.placas.forEach((placa, i) => {
+      const col = document.createElement('div');
+      col.className = 'col-md-6 mb-3';
+      col.innerHTML = `<div class="small text-muted mb-1">Placa ${i + 1} de ${data.num_placas} — ${placa.ancho} × ${placa.largo} mm — ${placa.piezas.length} piezas, ${placa.aprovechamiento}% aprovechamiento</div>`;
+      const wrap = document.createElement('div');
+      wrap.style.border = '1px solid #ddd';
+      wrap.appendChild(crearSvgPlaca(placa));
+      col.appendChild(wrap);
+      cont.appendChild(col);
+    });
+
+    document.getElementById('descargasPlano').style.display = '';
+  }catch(err){
+    mostrarMensajePlano('err', err.message || 'No se pudo calcular el plano.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Calcular plano de corte';
   }
 }
 </script>

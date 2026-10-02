@@ -560,6 +560,8 @@
         <div class="piezas-mobile" id="cortesMobile"></div>
 
         <button type="button" class="add-btn" id="addPiezaBtn">+ Agregar pieza</button>
+        <button type="button" class="add-btn" id="btnCargarFoto">📷 Cargar piezas desde una foto</button>
+        <input type="file" id="fotoInput" accept="image/*" hidden>
 
         <div class="resumen-linea" id="resumenPaso2" style="margin-top:16px;"></div>
       </div>
@@ -972,6 +974,41 @@
   document.getElementById('addPiezaBtn').addEventListener('click', () => {
     piezas.push(nuevaPieza());
     renderPiezas();
+  });
+
+  // ----- cargar piezas desde una foto -----
+  const btnCargarFoto = document.getElementById('btnCargarFoto');
+  const fotoInput = document.getElementById('fotoInput');
+  btnCargarFoto.addEventListener('click', () => fotoInput.click());
+  fotoInput.addEventListener('change', async () => {
+    const archivo = fotoInput.files[0];
+    if (!archivo) return;
+
+    btnCargarFoto.disabled = true;
+    btnCargarFoto.textContent = 'Analizando foto…';
+    mostrarMensaje('msgPaso2', '', '');
+
+    const formData = new FormData();
+    formData.append('imagen', archivo);
+
+    try {
+      const res = await fetch('/extraer-piezas', {method: 'POST', body: formData});
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || 'No se pudo leer la imagen');
+      if (!data.piezas || data.piezas.length === 0) {
+        mostrarMensaje('msgPaso2', 'err', 'No encontramos piezas reconocibles en la foto.');
+        return;
+      }
+      data.piezas.forEach(p => piezas.push({...nuevaPieza(), ...p}));
+      renderPiezas();
+      mostrarMensaje('msgPaso2', 'ok', `Se agregaron ${data.piezas.length} pieza(s) desde la foto — revisalas antes de continuar.`);
+    } catch (err) {
+      mostrarMensaje('msgPaso2', 'err', err.message || 'No pudimos leer la imagen. Probá de nuevo.');
+    } finally {
+      btnCargarFoto.disabled = false;
+      btnCargarFoto.textContent = '📷 Cargar piezas desde una foto';
+      fotoInput.value = '';
+    }
   });
 
   // ----- pegar desde Excel (tabla desktop) -----

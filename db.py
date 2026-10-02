@@ -146,6 +146,15 @@ async def listar_solicitudes():
     return _rows_a_dicts(filas)
 
 
+async def listar_solicitudes_por_telefono(telefono: str, excluir_id: int):
+    pool = await get_pool()
+    filas = await pool.fetch(
+        "SELECT * FROM solicitudes WHERE telefono = $1 AND id != $2 ORDER BY creado_en DESC",
+        telefono, excluir_id,
+    )
+    return _rows_a_dicts(filas)
+
+
 async def actualizar_solicitud(solicitud_id: int, datos):
     pool = await get_pool()
     async with pool.acquire() as con, con.transaction():
