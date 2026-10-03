@@ -58,7 +58,7 @@ def _dibujar_etiqueta(ax, pc: PiezaColocada, placa: Placa, codigo: str, cantidad
         return
 
     texto = colores.texto_codigo_pieza(pc, codigo, cantidad_grupo)
-    tamano = max(6.5, min(12.0, lado_menor / placa.ancho * 70))
+    tamano = max(4.0, min(7.0, lado_menor / placa.ancho * 35))
     rotacion_texto = 90 if pc.alto_y > pc.ancho_x * 1.6 else 0
 
     ax.text(
