@@ -104,6 +104,23 @@ def obtener_precios_servicios() -> dict:
     return {"corte": precio_corte, "canto": precio_canto}
 
 
+#: Estados de sale.order en los que la cotización todavía no se confirmó
+#: como venta — en estos casos "reenviar" actualiza la misma cotización en
+#: vez de duplicarla. "sale"/"done" (ya confirmada) o "cancel" quedan afuera
+#: a propósito: no se pisa una venta ya cerrada.
+_ESTADOS_NO_CONFIRMADOS = ("draft", "sent")
+
+
+def _estado_pedido_existente(models, uid, pedido_id: int) -> str | None:
+    """Estado actual de una cotización ya enviada, o None si ya no existe
+    en Odoo (se borró a mano)."""
+    try:
+        registros = _llamar(models, uid, "sale.order", "read", [pedido_id], fields=["state"])
+    except xmlrpc.client.Fault:
+        return None
+    return registros[0]["state"] if registros else None
+
+
 def crear_presupuesto(solicitud: dict) -> dict:
     uid, models = _conectar()
 
@@ -117,20 +134,20 @@ def crear_presupuesto(solicitud: dict) -> dict:
     total_metros_corte = calculos.metros_corte(cortes)
     total_metros_canto = calculos.metros_canto(cortes)
 
-    lineas_pedido = [(0, 0, {
+    lineas_valores = [{
         "product_id": producto_corte_id,
         "product_uom_qty": round(total_metros_corte, 2),
         "name": f"Servicio de corte CNC - Solicitud #{solicitud['id']}\n{_describir_cortes(cortes)}",
-    })]
+    }]
 
     if total_metros_canto > 0:
         producto_canto_id, _ = _resolver_variante(models, uid, config.ODOO_PRODUCT_CANTO_ID)
         if producto_canto_id:
-            lineas_pedido.append((0, 0, {
+            lineas_valores.append({
                 "product_id": producto_canto_id,
                 "product_uom_qty": round(total_metros_canto, 2),
                 "name": "Servicio de pegado de canto Simple",
-            }))
+            })
 
     material_odoo_id = solicitud.get("material_odoo_id")
     material_ancho = solicitud.get("material_ancho")
@@ -140,20 +157,40 @@ def crear_presupuesto(solicitud: dict) -> dict:
         if placas > 0:
             producto_material_id, _ = _resolver_variante(models, uid, material_odoo_id)
             if producto_material_id:
-                lineas_pedido.append((0, 0, {
+                lineas_valores.append({
                     "product_id": producto_material_id,
                     "product_uom_qty": placas,
                     "name": solicitud.get("material") or "Placa",
-                }))
+                })
 
     partner_id = _buscar_o_crear_partner(models, uid, solicitud)
+    titulo = f"{solicitud['contacto']} - {solicitud['telefono']}"
+
+    pedido_existente_id = solicitud.get("odoo_pedido_id")
+    if pedido_existente_id:
+        estado = _estado_pedido_existente(models, uid, pedido_existente_id)
+        if estado in _ESTADOS_NO_CONFIRMADOS:
+            # Todavía es una cotización sin confirmar: se actualiza en vez
+            # de crear una duplicada. (5, 0, 0) borra las líneas actuales
+            # antes de agregar las nuevas, en el mismo write.
+            _llamar(
+                models, uid, "sale.order", "write", [pedido_existente_id],
+                {
+                    "partner_id": partner_id,
+                    "x_studio_titulo": titulo,
+                    "order_line": [(5, 0, 0)] + [(0, 0, v) for v in lineas_valores],
+                },
+            )
+            pedido = _llamar(models, uid, "sale.order", "read", [pedido_existente_id], fields=["name"])[0]
+            return {"odoo_pedido_id": pedido_existente_id, "odoo_pedido_nombre": pedido["name"]}
+        # Ya confirmada (o cancelada/borrada): no se toca, se crea una nueva abajo.
 
     pedido_id = _llamar(
         models, uid, "sale.order", "create",
         {
             "partner_id": partner_id,
-            "x_studio_titulo": f"{solicitud['contacto']} - {solicitud['telefono']}",
-            "order_line": lineas_pedido,
+            "x_studio_titulo": titulo,
+            "order_line": [(0, 0, v) for v in lineas_valores],
         },
     )
     pedido = _llamar(models, uid, "sale.order", "read", [pedido_id], fields=["name"])[0]
