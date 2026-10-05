@@ -1053,7 +1053,9 @@
     if (!opt) return null;
     const ancho = opt.dataset.ancho ? Number(opt.dataset.ancho) : null;
     const largo = opt.dataset.largo ? Number(opt.dataset.largo) : null;
-    return {opt, ancho, largo};
+    const materialId = opt.dataset.id ? Number(opt.dataset.id) : null;
+    const materialManualId = opt.dataset.manualId ? Number(opt.dataset.manualId) : null;
+    return {opt, ancho, largo, materialId, materialManualId};
   }
 
   async function calcularDistribucion(activas){
@@ -1073,13 +1075,18 @@
       const res = await fetch('/distribucion', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({cortes: activas, ancho_placa: medida.ancho, largo_placa: medida.largo}),
+        body: JSON.stringify({
+          cortes: activas, ancho_placa: medida.ancho, largo_placa: medida.largo,
+          material_id: medida.materialId, material_manual_id: medida.materialManualId,
+        }),
       });
-      if (!res.ok) throw new Error('error');
-      distribucion = await res.json();
+      const datos = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((datos && datos.detail) || 'error');
+      distribucion = datos;
       renderDistribucion(medida);
     }catch(err){
-      distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución en este momento. Igual podés continuar y ver el precio.</div>`;
+      const motivo = err && err.message && err.message !== 'error' ? ` (${err.message})` : '';
+      distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución en este momento${motivo}. Igual podés continuar y ver el precio.</div>`;
     }
   }
 
@@ -1090,7 +1097,7 @@
     html += `<div class="placas-necesarias-sub">Así distribuimos tus piezas para aprovechar mejor el material. Las piezas del mismo tamaño comparten color.</div>`;
     html += `<div class="placas-grid" id="placasGrid"></div>`;
 
-    const totalPiezas = distribucion.placas.reduce((acc, pl) => acc + pl.piezas.length, 0);
+    const totalPiezas = distribucion.total_piezas;
     html += `<div class="resumen-card">
       <div class="resumen-card-titulo">Resumen</div>
       <div class="resumen-card-filas">
@@ -1119,7 +1126,7 @@
       const info = document.createElement('div');
       info.className = 'placa-info';
       info.innerHTML = `
-        <span><b>${placa.piezas.length}</b> piezas</span>
+        <span><b>${placa.piezas}</b> piezas</span>
         <span>Aprovechamiento: <b>${placa.aprovechamiento}%</b></span>
         <span>Sobrante: <b>${placa.sobrante}%</b></span>
       `;

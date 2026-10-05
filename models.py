@@ -76,6 +76,8 @@ class DistribucionIn(BaseModel):
     cortes: list[FilaCorte]
     ancho_placa: int
     largo_placa: int
+    material_id: Optional[int] = None
+    material_manual_id: Optional[int] = None
 
 
 class MaterialManualIn(BaseModel):

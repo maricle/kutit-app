@@ -119,11 +119,9 @@ def dibujar_placa(ax, placa: Placa, resultado: Resultado, colores_grupo: dict[co
         spine.set_visible(False)
 
     # "Cortes" (pasadas de sierra) no se muestra acá a propósito: es
-    # terminología técnica de taller, no hace falta en el título de la
-    # imagen — el PDF interno ya lo tiene en su tabla de métricas
-    # (resumen.py), y el motor simplificado del formulario público (que
-    # también reusa este dibujo, ver calculos.generar_previews_png) ni
-    # siquiera lo calcula.
+    # terminología técnica de taller que no aporta en la vista que también
+    # ve el cliente en el formulario público — el PDF interno ya lo tiene
+    # en su tabla de métricas (resumen.py).
     ax.set_title(
         f"Placa {placa.indice}  ·  {placa.largo:g} x {placa.ancho:g} mm  ·  "
         f"{len(placa.piezas)} piezas  ·  "

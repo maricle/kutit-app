@@ -215,21 +215,37 @@ async def precios_servicios():
 
 @app.post("/distribucion")
 async def calcular_distribucion_endpoint(datos: DistribucionIn):
+    """Mismo motor de nesting que el panel interno (optimizador.calcular_resultado
+    — ver kutit spec/spec-optimizador-corte.md), para que el cliente vea la
+    distribución, el aprovechamiento y los metros de corte/canto reales con
+    los que después se va a cortar, no una estimación aparte. La única
+    diferencia con el panel interno es que acá no se generan DXF/PDF/
+    etiquetas: el cliente solo confirma distribución y precio."""
     cortes = [c.model_dump() for c in datos.cortes if not fila_vacia(c)]
     if not cortes:
         raise HTTPException(status_code=400, detail="Agregá al menos un corte")
     if datos.ancho_placa <= 0 or datos.largo_placa <= 0:
         raise HTTPException(status_code=400, detail="Medida de placa inválida")
 
-    resultado = calculos.calcular_distribucion(cortes, datos.ancho_placa, datos.largo_placa)
-    resultado["metros_corte"] = round(calculos.metros_corte(cortes), 2)
-    resultado["metros_canto"] = round(calculos.metros_canto(cortes), 2)
+    medida = await _medida_material(datos.material_id, datos.material_manual_id)
+    tiene_veta = medida[2] if medida else False
+    maquina = await db.obtener_configuracion_maquina()
 
-    imagenes = await asyncio.to_thread(calculos.generar_previews_png, resultado)
-    for placa, imagen_base64 in zip(resultado["placas"], imagenes):
-        placa["imagen_base64"] = imagen_base64
+    try:
+        resultado = await asyncio.to_thread(
+            optimizador.calcular_resultado,
+            cortes, datos.ancho_placa, datos.largo_placa,
+            kerf_mm=float(maquina["kerf_mm"]),
+            margen_mm=float(maquina["margen_mm"]),
+            modo_canto=maquina["modo_canto"],
+            espesor_canto_mm=float(maquina["espesor_canto_default_mm"]),
+            canto_umbral_mm=float(maquina["canto_umbral_mm"]),
+            tiene_veta=tiene_veta,
+        )
+    except optimizador.OptimizadorError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    return resultado
+    return optimizador.resultado_a_resumen(resultado)
 
 
 @app.post("/extraer-piezas")
@@ -488,21 +504,30 @@ async def crear_solicitud_staff(datos: SolicitudCorteIn):
     return {"ok": True, "id": solicitud_id}
 
 
+async def _medida_material(material_id: int | None, material_manual_id: int | None) -> tuple[int, int, bool] | None:
+    """Ancho/largo (mm) y si tiene veta, de un material por id (de Odoo o
+    manual), si tiene una medida configurada en el panel de precios. None
+    si no aplica. Compartido entre el panel interno (a partir de una
+    solicitud ya guardada) y el formulario público (a partir del material
+    elegido en el paso 3, antes de crear la solicitud)."""
+    if material_id:
+        medida = await db.obtener_medida_material(material_id)
+        if medida and medida["ancho"] and medida["largo"]:
+            return medida["ancho"], medida["largo"], bool(medida["tiene_veta"])
+    elif material_manual_id:
+        manual = await db.obtener_material_manual(material_manual_id)
+        if manual and manual["ancho"] and manual["largo"]:
+            return manual["ancho"], manual["largo"], bool(manual["tiene_veta"])
+    return None
+
+
 async def _medida_material_de_solicitud(solicitud: dict) -> tuple[int, int, bool] | None:
     """Ancho/largo (mm) y si tiene veta, de la placa elegida en la
     solicitud, si tiene una medida configurada en el panel de precios.
     None si no aplica."""
     if not solicitud.get("con_material"):
         return None
-    if solicitud.get("material_id"):
-        medida = await db.obtener_medida_material(solicitud["material_id"])
-        if medida and medida["ancho"] and medida["largo"]:
-            return medida["ancho"], medida["largo"], bool(medida["tiene_veta"])
-    elif solicitud.get("material_manual_id"):
-        manual = await db.obtener_material_manual(solicitud["material_manual_id"])
-        if manual and manual["ancho"] and manual["largo"]:
-            return manual["ancho"], manual["largo"], bool(manual["tiene_veta"])
-    return None
+    return await _medida_material(solicitud.get("material_id"), solicitud.get("material_manual_id"))
 
 
 @app.get("/dashboard/solicitudes/{solicitud_id}", response_class=HTMLResponse)

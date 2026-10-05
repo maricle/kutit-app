@@ -1,8 +1,9 @@
 """Motor de nesting real (corte guillotina) y generación de archivos de
 corte (DXF/PDF/etiquetas), portado de la herramienta de consola standalone
-"Kutit Adrian" (ver kutit spec/spec-optimizador-corte.md). Se usa solo desde
-el panel interno — el formulario público sigue con su propio packer
-simplificado en calculos.py (ver el spec para el porqué)."""
+"Kutit Adrian" (ver kutit spec/spec-optimizador-corte.md). Lo usan tanto el
+panel interno como el formulario público (mismo cálculo de distribución,
+aprovechamiento y metros) — la única diferencia es que el formulario
+público nunca genera DXF/PDF/etiquetas, eso es exclusivo del panel."""
 
 import matplotlib
 
