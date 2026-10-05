@@ -224,6 +224,11 @@ async def calcular_distribucion_endpoint(datos: DistribucionIn):
     resultado = calculos.calcular_distribucion(cortes, datos.ancho_placa, datos.largo_placa)
     resultado["metros_corte"] = round(calculos.metros_corte(cortes), 2)
     resultado["metros_canto"] = round(calculos.metros_canto(cortes), 2)
+
+    imagenes = await asyncio.to_thread(calculos.generar_previews_png, resultado)
+    for placa, imagen_base64 in zip(resultado["placas"], imagenes):
+        placa["imagen_base64"] = imagen_base64
+
     return resultado
 
 

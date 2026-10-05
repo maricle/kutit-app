@@ -383,8 +383,6 @@
   .placa-svg-wrap{border:1px solid var(--gris-borde);border-radius:4px;overflow:hidden;background:var(--gris-sobrante);}
   .placa-info{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:12px;color:#555;}
   .placa-info b{color:var(--negro);}
-  .leyenda-placas{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;color:#555;margin:14px 0 4px;}
-  .leyenda-item{display:flex;align-items:center;gap:6px;}
   .leyenda-cuadro{width:13px;height:13px;border-radius:2px;border:1px solid #999;display:inline-block;}
   .aviso-info{
     background:#e9f4fb;border:1px solid #b9dcef;border-radius:var(--radius);
@@ -1085,74 +1083,11 @@
     }
   }
 
-  function crearSvgPlaca(placa){
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${placa.ancho} ${placa.largo}`);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.style.width = '100%';
-    svg.style.display = 'block';
-    svg.style.maxHeight = '420px';
-
-    const fondo = document.createElementNS(NS, 'rect');
-    fondo.setAttribute('x', 0); fondo.setAttribute('y', 0);
-    fondo.setAttribute('width', placa.ancho); fondo.setAttribute('height', placa.largo);
-    fondo.setAttribute('fill', 'var(--gris-placa)');
-    svg.appendChild(fondo);
-
-    const gap = Math.max(4, Math.round(Math.min(placa.ancho, placa.largo) * 0.004));
-    placa.piezas.forEach(p => {
-      const rect = document.createElementNS(NS, 'rect');
-      rect.setAttribute('x', p.x + gap / 2);
-      rect.setAttribute('y', p.y + gap / 2);
-      rect.setAttribute('width', Math.max(0, p.ancho - gap));
-      rect.setAttribute('height', Math.max(0, p.alto - gap));
-      rect.setAttribute('fill', p.desborda ? '#fdeaea' : '#fffdf3');
-      rect.setAttribute('stroke', p.desborda ? 'var(--rojo)' : '#999');
-      rect.setAttribute('stroke-width', Math.max(1, Math.min(placa.ancho, placa.largo) * 0.002));
-      svg.appendChild(rect);
-
-      const areaMinimaParaTexto = 26000; // mm² — evita amontonar texto en piezas muy chicas
-      if (p.ancho * p.alto >= areaMinimaParaTexto){
-        const cx = p.x + p.ancho / 2;
-        const cy = p.y + p.alto / 2;
-        const escala = Math.min(placa.ancho, placa.largo);
-        const fsTitulo = escala * 0.024;
-        const fsMedida = escala * 0.02;
-
-        const t1 = document.createElementNS(NS, 'text');
-        t1.setAttribute('x', cx); t1.setAttribute('y', cy - fsTitulo * 0.2);
-        t1.setAttribute('text-anchor', 'middle');
-        t1.setAttribute('font-family', 'Montserrat, sans-serif');
-        t1.setAttribute('font-weight', '700');
-        t1.setAttribute('font-size', fsTitulo);
-        t1.setAttribute('fill', 'var(--negro)');
-        t1.textContent = p.etiqueta;
-        svg.appendChild(t1);
-
-        const t2 = document.createElementNS(NS, 'text');
-        t2.setAttribute('x', cx); t2.setAttribute('y', cy + fsMedida * 1.3);
-        t2.setAttribute('text-anchor', 'middle');
-        t2.setAttribute('font-family', 'Open Sans, sans-serif');
-        t2.setAttribute('font-size', fsMedida);
-        t2.setAttribute('fill', '#555');
-        t2.textContent = `${p.alto} × ${p.ancho}`;
-        svg.appendChild(t2);
-      }
-    });
-
-    return svg;
-  }
-
   function renderDistribucion(medida){
     const nombreMaterial = medida.opt.value;
     let html = '';
     html += `<div class="placas-necesarias">Necesitás ${distribucion.num_placas} placa${distribucion.num_placas === 1 ? '' : 's'}</div>`;
-    html += `<div class="placas-necesarias-sub">Así distribuimos tus piezas para aprovechar mejor el material.</div>`;
-    html += `<div class="leyenda-placas">
-      <div class="leyenda-item"><span class="leyenda-cuadro" style="background:#fffdf3;"></span> Piezas</div>
-      <div class="leyenda-item"><span class="leyenda-cuadro" style="background:var(--gris-placa);"></span> Sobrante</div>
-    </div>`;
+    html += `<div class="placas-necesarias-sub">Así distribuimos tus piezas para aprovechar mejor el material. Las piezas del mismo tamaño comparten color.</div>`;
     html += `<div class="placas-grid" id="placasGrid"></div>`;
 
     const totalPiezas = distribucion.placas.reduce((acc, pl) => acc + pl.piezas.length, 0);
@@ -1178,11 +1113,8 @@
       card.innerHTML = `
         <div class="placa-card-titulo">Placa ${i + 1} de ${distribucion.num_placas}</div>
         <div class="placa-card-material">${nombreMaterial} · ${placa.ancho} × ${placa.largo} mm</div>
+        <div class="placa-svg-wrap"><img src="data:image/png;base64,${placa.imagen_base64}" style="width:100%;display:block;"></div>
       `;
-      const svgWrap = document.createElement('div');
-      svgWrap.className = 'placa-svg-wrap';
-      svgWrap.appendChild(crearSvgPlaca(placa));
-      card.appendChild(svgWrap);
 
       const info = document.createElement('div');
       info.className = 'placa-info';
