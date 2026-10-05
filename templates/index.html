@@ -520,6 +520,16 @@
           <label for="material">Tipo de material</label>
           <select id="material"></select>
         </div>
+        <div class="grid2" id="medidaPropiaField" hidden>
+          <div class="field">
+            <label for="anchoPropio">Ancho de tu placa (mm)</label>
+            <input type="number" id="anchoPropio" min="1" placeholder="Ej: 1830">
+          </div>
+          <div class="field">
+            <label for="largoPropio">Largo de tu placa (mm)</label>
+            <input type="number" id="largoPropio" min="1" placeholder="Ej: 2750">
+          </div>
+        </div>
       </div>
 
       <div class="msg" id="msgPaso1"></div>
@@ -689,12 +699,16 @@
   const opcionSinMaterial = document.getElementById('opcionSinMaterial');
   const materialField = document.getElementById('materialField');
   const materialSelect = document.getElementById('material');
+  const medidaPropiaField = document.getElementById('medidaPropiaField');
+  const anchoPropioInput = document.getElementById('anchoPropio');
+  const largoPropioInput = document.getElementById('largoPropio');
 
   function elegirMaterial(valor){
     conMaterial = valor;
     opcionConMaterial.classList.toggle('activa', valor === 'si');
     opcionSinMaterial.classList.toggle('activa', valor === 'no');
     materialField.hidden = valor !== 'si';
+    medidaPropiaField.hidden = valor !== 'no';
   }
   opcionConMaterial.addEventListener('click', () => elegirMaterial('si'));
   opcionSinMaterial.addEventListener('click', () => elegirMaterial('no'));
@@ -729,6 +743,10 @@
     const telefono = document.getElementById('telefono').value.trim();
     if (!contacto || !telefono){
       mostrarMensaje('msgPaso1', 'err', 'Completá tu nombre y tu WhatsApp para continuar.');
+      return;
+    }
+    if (conMaterial === 'no' && (!Number(anchoPropioInput.value) || !Number(largoPropioInput.value))){
+      mostrarMensaje('msgPaso1', 'err', 'Ingresá el ancho y el largo de tu placa para poder calcular la distribución.');
       return;
     }
     mostrarMensaje('msgPaso1', '', '');
@@ -1060,14 +1078,25 @@
 
   async function calcularDistribucion(activas){
     distribucion = null;
-    if (conMaterial !== 'si'){
-      distribucionContenido.innerHTML = `<div class="aviso-info">Como vas a traer tu propia placa, no calculamos cómo se distribuyen las piezas — más abajo vas a ver el precio del corte y el canto.</div>`;
-      return;
-    }
-    const medida = medidaMaterialSeleccionado();
-    if (!medida || !medida.ancho || !medida.largo){
-      distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución para "${medida && medida.opt ? medida.opt.value : 'el material elegido'}" porque todavía no tiene la medida configurada. Igual podés continuar y ver el precio.</div>`;
-      return;
+    let ancho, largo, materialId = null, materialManualId = null, nombreMaterial;
+
+    if (conMaterial === 'si'){
+      const medida = medidaMaterialSeleccionado();
+      if (!medida || !medida.ancho || !medida.largo){
+        distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución para "${medida && medida.opt ? medida.opt.value : 'el material elegido'}" porque todavía no tiene la medida configurada. Igual podés continuar y ver el precio.</div>`;
+        return;
+      }
+      ancho = medida.ancho; largo = medida.largo;
+      materialId = medida.materialId; materialManualId = medida.materialManualId;
+      nombreMaterial = medida.opt.value;
+    } else {
+      ancho = Number(anchoPropioInput.value);
+      largo = Number(largoPropioInput.value);
+      if (!ancho || !largo){
+        distribucionContenido.innerHTML = `<div class="aviso-info">Ingresá el ancho y el largo de tu placa en el paso 1 para calcular la distribución.</div>`;
+        return;
+      }
+      nombreMaterial = 'Tu placa';
     }
 
     distribucionContenido.innerHTML = `<div class="cargando">Calculando la mejor forma de aprovechar la placa…</div>`;
@@ -1076,22 +1105,21 @@
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          cortes: activas, ancho_placa: medida.ancho, largo_placa: medida.largo,
-          material_id: medida.materialId, material_manual_id: medida.materialManualId,
+          cortes: activas, ancho_placa: ancho, largo_placa: largo,
+          material_id: materialId, material_manual_id: materialManualId,
         }),
       });
       const datos = await res.json().catch(() => null);
       if (!res.ok) throw new Error((datos && datos.detail) || 'error');
       distribucion = datos;
-      renderDistribucion(medida);
+      renderDistribucion(nombreMaterial);
     }catch(err){
       const motivo = err && err.message && err.message !== 'error' ? ` (${err.message})` : '';
       distribucionContenido.innerHTML = `<div class="aviso-info">No pudimos calcular la distribución en este momento${motivo}. Igual podés continuar y ver el precio.</div>`;
     }
   }
 
-  function renderDistribucion(medida){
-    const nombreMaterial = medida.opt.value;
+  function renderDistribucion(nombreMaterial){
     let html = '';
     html += `<div class="placas-necesarias">Necesitás ${distribucion.num_placas} placa${distribucion.num_placas === 1 ? '' : 's'}</div>`;
     html += `<div class="placas-necesarias-sub">Así distribuimos tus piezas para aprovechar mejor el material. Las piezas del mismo tamaño comparten color.</div>`;
@@ -1218,7 +1246,7 @@
   }
 
   document.getElementById('btnModificarPedido').addEventListener('click', () => {
-    mostrarPaso(conMaterial === 'si' ? 3 : 2);
+    mostrarPaso(3);
   });
 
   // ---------------------------------------------------------------- confirmar pedido
