@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 import asyncpg
@@ -83,6 +84,17 @@ CREATE TABLE IF NOT EXISTS configuracion_maquina (
 );
 """
 
+SCHEMA_PLANOS_GENERADOS = """
+CREATE TABLE IF NOT EXISTS planos_generados (
+    solicitud_id INTEGER PRIMARY KEY REFERENCES solicitudes(id) ON DELETE CASCADE,
+    generado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resumen JSONB NOT NULL,
+    dxf_zip BYTEA NOT NULL,
+    pdf BYTEA NOT NULL,
+    etiquetas_pdf BYTEA
+);
+"""
+
 
 async def get_pool() -> asyncpg.Pool:
     global _pool
@@ -99,6 +111,7 @@ async def init_db():
         await con.execute(SCHEMA_MEDIDAS_MATERIAL)
         await con.execute(SCHEMA_MATERIALES_MANUALES)
         await con.execute(SCHEMA_CONFIGURACION_MAQUINA)
+        await con.execute(SCHEMA_PLANOS_GENERADOS)
         for columna in (
             "odoo_pedido_id INTEGER",
             "odoo_pedido_nombre TEXT",
@@ -362,3 +375,43 @@ async def guardar_configuracion_maquina(
         _decimal_limpio(kerf_mm), _decimal_limpio(margen_mm), modo_canto,
         _decimal_limpio(espesor_canto_default_mm), _decimal_limpio(canto_umbral_mm),
     )
+
+
+async def guardar_plano_generado(
+    solicitud_id: int, resumen: dict, dxf_zip: bytes, pdf: bytes, etiquetas_pdf: bytes | None,
+) -> None:
+    """Guarda (o reemplaza, si ya había uno) el plano de corte calculado
+    para esta solicitud: el resumen (sin las imágenes de cada placa, que son
+    baratas de regenerar) más los tres archivos descargables ya generados,
+    para que las descargas no tengan que recalcular el nesting cada vez."""
+    pool = await get_pool()
+    await pool.execute(
+        """INSERT INTO planos_generados (solicitud_id, resumen, dxf_zip, pdf, etiquetas_pdf)
+           VALUES ($1, $2::jsonb, $3, $4, $5)
+           ON CONFLICT (solicitud_id) DO UPDATE SET
+               generado_en = now(), resumen = $2::jsonb, dxf_zip = $3, pdf = $4, etiquetas_pdf = $5""",
+        solicitud_id, json.dumps(resumen), dxf_zip, pdf, etiquetas_pdf,
+    )
+
+
+async def obtener_plano_resumen(solicitud_id: int) -> dict | None:
+    """Metadatos + resumen (sin los archivos binarios) del último plano
+    calculado para esta solicitud, o None si todavía no se calculó
+    ninguno. Para mostrar en la página sin traer los blobs completos."""
+    pool = await get_pool()
+    fila = await pool.fetchrow(
+        "SELECT generado_en, resumen FROM planos_generados WHERE solicitud_id = $1", solicitud_id
+    )
+    if not fila:
+        return None
+    return {"generado_en": fila["generado_en"], "resumen": json.loads(fila["resumen"])}
+
+
+async def obtener_plano_archivos(solicitud_id: int) -> dict | None:
+    """DXF/PDF/etiquetas guardados para esta solicitud, o None si todavía
+    no se calculó ningún plano."""
+    pool = await get_pool()
+    fila = await pool.fetchrow(
+        "SELECT dxf_zip, pdf, etiquetas_pdf FROM planos_generados WHERE solicitud_id = $1", solicitud_id
+    )
+    return dict(fila) if fila else None

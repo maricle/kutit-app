@@ -171,8 +171,15 @@
 <div class="card shadow mb-4">
   <div class="card-header py-3"><h6 class="m-0 font-weight-bold">Plano de corte</h6></div>
   <div class="card-body">
+    {% if plano_generado %}
+    <p class="text-muted small mb-2" id="planoGuardadoInfo">
+      Último plano calculado el {{ plano_generado.generado_en.strftime('%d/%m/%Y %H:%M') }} —
+      {{ plano_generado.resumen.num_placas }} placa(s), {{ plano_generado.resumen.aprovechamiento }}% aprovechamiento.
+      Los archivos de abajo son de ese cálculo; volvé a calcular si cambiaste piezas o la configuración de máquina.
+    </p>
+    {% endif %}
     <button type="button" class="btn btn-primary btn-sm mb-2" id="btnCalcularPlano" onclick="calcularPlano({{ solicitud.id }})">Calcular plano de corte</button>
-    <div class="btn-group btn-group-sm mb-2 ml-2" id="descargasPlano" style="display:none">
+    <div class="btn-group btn-group-sm mb-2 ml-2" id="descargasPlano" style="{{ '' if plano_generado else 'display:none' }}">
       <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/dxf">Descargar DXF</a>
       <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/pdf">Descargar PDF</a>
       <a class="btn btn-outline-secondary" href="/dashboard/solicitudes/{{ solicitud.id }}/plano/etiquetas">Descargar etiquetas</a>
@@ -387,6 +394,7 @@ async function calcularPlano(id){
     });
 
     document.getElementById('descargasPlano').style.display = '';
+    document.getElementById('planoGuardadoInfo')?.remove();
   }catch(err){
     mostrarMensajePlano('err', err.message || 'No se pudo calcular el plano.');
   }finally{

@@ -1,7 +1,7 @@
 """Algoritmo de optimización de corte (nesting 2D, multi-placa). Portado de
-Kutit Adrian (kutit_kleba/src/kutit/optimizador.py), sin cambios de lógica
-— solo renombrado el archivo (de `optimizador.py` a `empaquetador.py`) para
-no chocar con el nombre del paquete.
+Kutit Adrian (kutit_kleba/src/kutit/optimizador.py) — solo renombrado el
+archivo (de `optimizador.py` a `empaquetador.py`) para no chocar con el
+nombre del paquete.
 
 Empaquetador guillotina con heurística Best Short Side Fit (BSSF): cada
 corte que se traza es una línea recta que atraviesa de lado a lado el
@@ -20,16 +20,49 @@ dejar huecos en L imposibles de cortar).
 Kerf: en vez de restar el corte de sierra a mano, se empaqueta cada pieza
 como `medida + kerf` dentro de una placa de `medida + kerf`.
 
-Orden de entrada: se prueban cinco ordenamientos (área, lado mayor, largo,
-ancho, perímetro) y se queda el mejor resultado.
+Orden de entrada (empaquetador voraz)
+------------------------------------
+Lo de arriba describe el empaquetador **voraz**: coloca las piezas una por
+una, en un orden fijo, y en cada paso elige el hueco donde esa pieza deja
+menos sobrante (BSSF). El resultado depende del orden de entrada, así que
+se prueban cinco ordenamientos (área, lado mayor, largo, ancho, perímetro)
+y se queda el mejor resultado.
+
+El problema de cualquier voraz de un solo paso es que es **miope**: una
+pieza larga y angosta cuya altura casi iguala la de la placa SIEMPRE va a
+puntuar mejor (BSSF) que una pieza cuadrada, sin importar el orden, así que
+el voraz la sigue metiendo mientras entre una más — aunque eso deje una
+franja demasiado angosta para ningún otro tipo de pieza. Una placa puede
+terminar llena de un solo tipo, y recién la placa siguiente combina con el
+resto.
+
+Planificador (empaquetador por combinaciones)
+----------------------------------------------
+Por eso :func:`optimizar` prueba TAMBIÉN un segundo algoritmo, el
+planificador (ver :mod:`optimizador.planificador`), que para cada placa
+explora explícitamente **combinaciones de tipos de pieza**: para cada tipo
+prueba no solo "la cantidad máxima que entra", sino cada cantidad
+intermedia razonable (reservar 1, 2, 3... columnas), y recursa sobre lo que
+sobra de cada bloque con los demás tipos — así puede descubrir que reservar
+menos columnas de un tipo, dejando lugar para otro, deja la placa, en
+total, mejor aprovechada. Es una búsqueda combinatoria acotada por un
+presupuesto de nodos, pensada para catálogos de pocas decenas de tamaños
+distintos (el caso típico de una lista de corte de muebles).
+
+Se corren los dos algoritmos y se usa el resultado con mejor puntaje: el
+planificador gana en catálogos mixtos, pero el voraz queda como red de
+seguridad probada para cualquier caso límite donde el planificador no
+mejore o falle.
 """
 
 from __future__ import annotations
 
 import math
+from collections import Counter
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
+from . import planificador
 from .errores import ErrorConfiguracion, ErrorPiezaDemasiadoGrande
 from .modelos import Config, ModoPlaca, Pieza, PiezaColocada, Placa, Resultado, Sobrante
 
@@ -275,6 +308,100 @@ def _empaquetar(piezas: list[Pieza], config: Config) -> Resultado:
     return Resultado(placas=placas, no_colocadas=no_colocadas, total_piezas=len(piezas), config=config)
 
 
+# --------------------------------------------------------------------------
+# Empaquetado por combinaciones (planificador)
+# --------------------------------------------------------------------------
+def _agrupar_en_tipos(
+    piezas: list[Pieza], config: Config
+) -> tuple[list[planificador.Tipo], list[list[Pieza]]]:
+    """Agrupa las piezas en tipos intercambiables para el planificador.
+
+    Dos piezas son del mismo tipo si tienen la misma medida de corte Y la
+    misma regla de rotación (así el planificador no necesita saber nada de
+    cada pieza individual, solo "cuántas hay de cada tipo"). Devuelve los
+    tipos y, en paralelo, la cola de piezas reales de cada uno —para poder
+    mapear cada colocación del plan de vuelta a una `Pieza` concreta.
+    """
+    colas: dict[tuple[float, float, bool], list[Pieza]] = {}
+    for pieza in piezas:
+        clave = (
+            round(pieza.largo_corte, 2),
+            round(pieza.ancho_corte, 2),
+            puede_rotar(pieza, config.modo_placa),
+        )
+        colas.setdefault(clave, []).append(pieza)
+
+    tipos: list[planificador.Tipo] = []
+    colas_por_indice: list[list[Pieza]] = []
+    for indice, (clave, cola) in enumerate(colas.items()):
+        largo, ancho, rota = clave
+        tipos.append(
+            planificador.Tipo(
+                indice=indice, w=largo + config.kerf, h=ancho + config.kerf, rota=rota,
+                cantidad=len(cola),
+            )
+        )
+        colas_por_indice.append(cola)
+
+    return tipos, colas_por_indice
+
+
+def _empaquetar_planificado(piezas: list[Pieza], config: Config) -> Resultado:
+    """Como :func:`_empaquetar`, pero llenando cada placa con el
+    planificador (ver :mod:`optimizador.planificador`) en vez de una pieza a
+    la vez: para cada placa nueva busca la mejor combinación de tipos antes
+    de decidir cuánto de cada uno entra, en vez de aceptar siempre la
+    próxima pieza de una cola fija.
+    """
+    kerf = config.kerf
+    bin_x = config.largo_util + kerf
+    bin_y = config.ancho_util + kerf
+
+    tipos, colas = _agrupar_en_tipos(piezas, config)
+    placas: list[Placa] = []
+
+    while any(t.cantidad > 0 for t in tipos):
+        contenedor = _Guillotine(bin_x, bin_y)
+        placa = Placa(indice=len(placas) + 1, largo=config.placa_largo, ancho=config.placa_ancho)
+
+        _area, plan = planificador.planificar_placa(bin_x, bin_y, tipos)
+        if not plan:
+            # No debería pasar: validar_piezas_entran ya confirmó que algo
+            # entra en una placa vacía. Si pasa, es un bug del planificador;
+            # se corta acá y optimizar() se queda con el empaquetador voraz.
+            raise RuntimeError(
+                "El planificador no encontró ninguna colocación para una placa vacía."
+            )
+
+        for c in plan:
+            contenedor.colocar(c.x, c.y, c.w, c.h)
+
+        usados = Counter(c.tipo for c in plan)
+        for indice, cantidad in usados.items():
+            tipos[indice].cantidad -= cantidad
+
+        for c in plan:
+            pieza_real = colas[c.tipo].pop(0)
+            placa.piezas.append(
+                PiezaColocada(
+                    pieza=pieza_real,
+                    indice_placa=placa.indice,
+                    x=c.x + config.margen,
+                    y=c.y + config.margen,
+                    ancho_x=c.w - kerf,
+                    alto_y=c.h - kerf,
+                    rotada=c.rotada,
+                )
+            )
+
+        placa.cortes = contenedor.cortes
+        placa.longitud_cortes = contenedor.longitud_cortes
+        placa.sobrantes = _sobrantes_de(contenedor, config)
+        placas.append(placa)
+
+    return Resultado(placas=placas, no_colocadas=[], total_piezas=len(piezas), config=config)
+
+
 _ORDENES: tuple[tuple[str, Callable[[Pieza], float]], ...] = (
     ("área", lambda p: p.area_corte),
     ("lado mayor", lambda p: max(p.largo_corte, p.ancho_corte)),
@@ -291,18 +418,34 @@ def _puntaje(resultado: Resultado) -> tuple:
 
 
 def optimizar(piezas: list[Pieza], config: Config) -> Resultado:
-    """Optimiza el corte y devuelve el mejor resultado encontrado. Las
-    piezas deben venir con largo_corte/ancho_corte ya calculados (ver
+    """Optimiza el corte y devuelve el mejor resultado encontrado.
+
+    Se prueban dos algoritmos (ver el docstring del módulo): el
+    planificador, que busca combinaciones de tipos de pieza por placa, y el
+    voraz, con cinco órdenes de entrada distintos como red de seguridad. Se
+    devuelve el que haya dado mejor puntaje (ver :func:`_puntaje`). Si el
+    planificador falla por algún caso límite no previsto, se lo descarta en
+    silencio y se sigue solo con el voraz (que nunca falla).
+
+    Las piezas deben venir con largo_corte/ancho_corte ya calculados (ver
     optimizador.cantos)."""
     validar_config(config)
     validar_piezas_entran(piezas, config)
 
     mejor: Resultado | None = None
+
+    try:
+        candidato = _empaquetar_planificado(piezas, config)
+        if mejor is None or _puntaje(candidato) < _puntaje(mejor):
+            mejor = candidato
+    except Exception:  # noqa: BLE001 - el planificador es best-effort: si falla, sigue el voraz
+        pass
+
     for _nombre, clave in _ORDENES:
         ordenadas = sorted(piezas, key=clave, reverse=True)
         candidato = _empaquetar(ordenadas, config)
         if mejor is None or _puntaje(candidato) < _puntaje(mejor):
             mejor = candidato
 
-    assert mejor is not None
+    assert mejor is not None  # siempre hay al menos el voraz
     return mejor

@@ -551,6 +551,8 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
     for p in pedidos_anteriores:
         p["estado_label"] = ESTADOS_LABELS.get(p["estado"], p["estado"])
 
+    plano_generado = await db.obtener_plano_resumen(solicitud_id)
+
     return templates.TemplateResponse(
         request,
         "detalle.html",
@@ -561,6 +563,7 @@ async def editar_solicitud_page(request: Request, solicitud_id: int):
             "placas_necesarias": placas_necesarias,
             "tiene_medida_material": medida is not None,
             "pedidos_anteriores": pedidos_anteriores,
+            "plano_generado": plano_generado,
             "estado_label": ESTADOS_LABELS.get(solicitud["estado"], solicitud["estado"]),
             "etapa_label": ETAPAS_LABELS.get(solicitud["etapa_produccion"]),
             "active_nav": "panel",
@@ -683,16 +686,52 @@ async def _calcular_plano(solicitud_id: int) -> optimizador.Resultado:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+def _generar_archivos_plano(resultado: optimizador.Resultado) -> tuple[bytes, bytes, bytes | None]:
+    """Genera los tres archivos descargables de una sola vez, a partir del
+    mismo Resultado ya calculado — se llama una sola vez por cálculo (ver
+    calcular_plano_endpoint) en vez de una vez por descarga."""
+    return (
+        optimizador.generar_dxf_zip(resultado),
+        optimizador.generar_pdf(resultado),
+        optimizador.generar_etiquetas_pdf(resultado),
+    )
+
+
+def _resumen_sin_imagenes(resumen: dict) -> dict:
+    """Copia de `resumen` sin el PNG de cada placa — es lo que se persiste
+    en `planos_generados.resumen` para mostrar un resumen sin recalcular;
+    las imágenes son baratas de regenerar bajo demanda cuando sí hace falta
+    recalcular el plano."""
+    return {
+        **resumen,
+        "placas": [{k: v for k, v in p.items() if k != "imagen_base64"} for p in resumen["placas"]],
+    }
+
+
 @app.post("/dashboard/solicitudes/{solicitud_id}/plano", dependencies=[Depends(requerir_sesion)])
 async def calcular_plano_endpoint(solicitud_id: int):
     resultado = await _calcular_plano(solicitud_id)
-    return optimizador.resultado_a_resumen(resultado)
+    resumen = optimizador.resultado_a_resumen(resultado)
+
+    dxf_zip, pdf, etiquetas_pdf = await asyncio.to_thread(_generar_archivos_plano, resultado)
+    await db.guardar_plano_generado(solicitud_id, _resumen_sin_imagenes(resumen), dxf_zip, pdf, etiquetas_pdf)
+
+    return resumen
+
+
+async def _plano_archivo_o_404(solicitud_id: int, clave: str) -> bytes | None:
+    archivos = await db.obtener_plano_archivos(solicitud_id)
+    if not archivos:
+        raise HTTPException(
+            status_code=404,
+            detail="Todavía no se calculó el plano de corte de esta solicitud — apretá 'Calcular plano de corte' primero.",
+        )
+    return archivos[clave]
 
 
 @app.get("/dashboard/solicitudes/{solicitud_id}/plano/dxf", dependencies=[Depends(requerir_sesion)])
 async def plano_dxf_endpoint(solicitud_id: int):
-    resultado = await _calcular_plano(solicitud_id)
-    contenido = await asyncio.to_thread(optimizador.generar_dxf_zip, resultado)
+    contenido = await _plano_archivo_o_404(solicitud_id, "dxf_zip")
     return Response(
         content=contenido, media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="solicitud-{solicitud_id}-dxf.zip"'},
@@ -701,8 +740,7 @@ async def plano_dxf_endpoint(solicitud_id: int):
 
 @app.get("/dashboard/solicitudes/{solicitud_id}/plano/pdf", dependencies=[Depends(requerir_sesion)])
 async def plano_pdf_endpoint(solicitud_id: int):
-    resultado = await _calcular_plano(solicitud_id)
-    contenido = await asyncio.to_thread(optimizador.generar_pdf, resultado)
+    contenido = await _plano_archivo_o_404(solicitud_id, "pdf")
     return Response(
         content=contenido, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="solicitud-{solicitud_id}-orden-de-corte.pdf"'},
@@ -711,8 +749,7 @@ async def plano_pdf_endpoint(solicitud_id: int):
 
 @app.get("/dashboard/solicitudes/{solicitud_id}/plano/etiquetas", dependencies=[Depends(requerir_sesion)])
 async def plano_etiquetas_endpoint(solicitud_id: int):
-    resultado = await _calcular_plano(solicitud_id)
-    contenido = await asyncio.to_thread(optimizador.generar_etiquetas_pdf, resultado)
+    contenido = await _plano_archivo_o_404(solicitud_id, "etiquetas_pdf")
     if contenido is None:
         raise HTTPException(status_code=404, detail="No hay piezas colocadas para generar etiquetas")
     return Response(
